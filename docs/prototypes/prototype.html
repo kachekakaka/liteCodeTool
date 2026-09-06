@@ -568,6 +568,34 @@
       background: rgba(34, 211, 238, 0.05);
     }
 
+    /* 表格停更陈旧数据弱化样式 (Stale Row Dimming) */
+    .lc-table tr.row-stale td {
+      color: var(--lc-muted) !important;
+      background: rgba(4, 15, 28, 0.45);
+      opacity: 0.55;
+    }
+    .lc-table tr.row-stale td strong,
+    .lc-table tr.row-stale td span.vessel-name {
+      color: #94A3B8 !important;
+    }
+    .lc-table tr.row-stale .lc-badge {
+      background: rgba(120, 147, 174, 0.12) !important;
+      color: var(--lc-muted) !important;
+      border-color: rgba(120, 147, 174, 0.25) !important;
+      box-shadow: none !important;
+    }
+    .lc-table tr.row-stale .stale-tag {
+      display: inline-block;
+      margin-left: 6px;
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: rgba(255, 191, 71, 0.15);
+      color: var(--lc-warning);
+      border: 1px solid rgba(255, 191, 71, 0.35);
+      font-family: var(--font-sans);
+    }
+
     /* ========================================================================= */
     /* 卡片局部就地换船微型入口 (In-situ Retargeting Trigger)                     */
     /* ========================================================================= */
@@ -1048,16 +1076,23 @@
               <!-- ============================================================= -->
               <div class="row-middle-section">
 
-                <!-- 左侧: 多船航速时序主曲线 (全矢量 SVG 绘制，支持回溯窗口) -->
+                <!-- 左侧: 多船航速时序主曲线 / 全局宏观趋势大盘 (全矢量 SVG 绘制，支持回溯窗口与双来源模式) -->
                 <div class="lc-cut-card" id="card_inst_04" onclick="focusCard('inst_04')">
                   <div class="lc-card-head">
                     <div class="lc-card-title">
-                      <span>📈</span> 重点船舶航速动态时序主曲线
+                      <span>📈</span> <span id="title-inst_04-text">重点船舶航速动态时序主曲线</span>
                     </div>
-                    <div style="display: flex; gap: 16px; font-size: 12px; font-family: var(--font-mono);">
-                      <span style="color: #22D3EE;">● 远望1号</span>
-                      <span style="color: #25D8AE;">● 海巡01</span>
-                      <span style="color: #FFBF47;">● 浙岱渔0455</span>
+                    <!-- 来源 1: 监控对象槽位 (实体模式图例) -->
+                    <div id="legend-inst_04-entity" style="display: flex; gap: 16px; font-size: 12px; font-family: var(--font-mono);">
+                      <span id="legend-curve-slot1" style="color: #22D3EE;">● 远望1号</span>
+                      <span id="legend-curve-slot2" style="color: #25D8AE;">● 海巡01</span>
+                      <span id="legend-curve-slot3" style="color: #FFBF47;">● 浙岱渔0455</span>
+                      <span id="lbl-legend-window" style="color: var(--lc-muted); border-left: 1px solid var(--lc-border); padding-left: 12px;">窗口: 20分钟</span>
+                    </div>
+                    <!-- 来源 2: 全局统计指标 (宏观非实体模式图例) -->
+                    <div id="legend-inst_04-global" style="display: none; gap: 16px; font-size: 12px; font-family: var(--font-mono);">
+                      <span style="color: #2F8CFF; font-weight: 700;">● 全港宏观时序趋势 (免槽位声明)</span>
+                      <span id="lbl-global-current-stat" style="color: var(--lc-cyan); font-weight: 700;">当前: 188 艘</span>
                       <span style="color: var(--lc-muted); border-left: 1px solid var(--lc-border); padding-left: 12px;">窗口: 20分钟</span>
                     </div>
                   </div>
@@ -1071,27 +1106,47 @@
                       <line x1="60" y1="200" x2="1180" y2="200" stroke="#17486B" stroke-dasharray="3,3" stroke-width="1" />
                       <line x1="60" y1="270" x2="1180" y2="270" stroke="#17486B" stroke-dasharray="3,3" stroke-width="1" />
                       
-                      <!-- Y 轴刻度文字 -->
-                      <text x="50" y="65" fill="#7893AE" font-size="12" font-family="monospace" text-anchor="end">25 节</text>
-                      <text x="50" y="135" fill="#7893AE" font-size="12" font-family="monospace" text-anchor="end">20 节</text>
-                      <text x="50" y="205" fill="#7893AE" font-size="12" font-family="monospace" text-anchor="end">15 节</text>
-                      <text x="50" y="275" fill="#7893AE" font-size="12" font-family="monospace" text-anchor="end">10 节</text>
+                      <!-- Y 轴刻度文字 (可随实体/全局切换) -->
+                      <text id="axis-y-val-1" x="50" y="65" fill="#7893AE" font-size="12" font-family="monospace" text-anchor="end">25 节</text>
+                      <text id="axis-y-val-2" x="50" y="135" fill="#7893AE" font-size="12" font-family="monospace" text-anchor="end">20 节</text>
+                      <text id="axis-y-val-3" x="50" y="205" fill="#7893AE" font-size="12" font-family="monospace" text-anchor="end">15 节</text>
+                      <text id="axis-y-val-4" x="50" y="275" fill="#7893AE" font-size="12" font-family="monospace" text-anchor="end">10 节</text>
 
-                      <!-- 曲线 1: 远望1号 (青色) -->
-                      <path id="svg-curve-v1" d="M 60 210 Q 300 230, 600 190 T 1180 180" fill="none" stroke="#22D3EE" stroke-width="3" />
-                      <circle cx="1180" cy="180" r="5" fill="#22D3EE" id="dot-v1">
-                        <animate attributeName="r" values="4;7;4" dur="2s" repeatCount="indefinite" />
-                      </circle>
+                      <!-- 分组 1: 实体模式多曲线 -->
+                      <g id="svg-group-entity">
+                        <!-- 曲线 1: 远望1号 (青色) -->
+                        <path id="svg-curve-v1" d="M 60 210 Q 300 230, 600 190 T 1180 180" fill="none" stroke="#22D3EE" stroke-width="3" />
+                        <circle cx="1180" cy="180" r="5" fill="#22D3EE" id="dot-v1">
+                          <animate attributeName="r" values="4;7;4" dur="2s" repeatCount="indefinite" />
+                        </circle>
 
-                      <!-- 曲线 2: 海巡01 (薄荷绿) -->
-                      <path id="svg-curve-v2" d="M 60 140 Q 350 110, 700 150 T 1180 120" fill="none" stroke="#25D8AE" stroke-width="3" />
-                      <circle cx="1180" cy="120" r="5" fill="#25D8AE" id="dot-v2">
-                        <animate attributeName="r" values="4;7;4" dur="2.4s" repeatCount="indefinite" />
-                      </circle>
+                        <!-- 曲线 2: 海巡01 (薄荷绿) -->
+                        <path id="svg-curve-v2" d="M 60 140 Q 350 110, 700 150 T 1180 120" fill="none" stroke="#25D8AE" stroke-width="3" />
+                        <circle cx="1180" cy="120" r="5" fill="#25D8AE" id="dot-v2">
+                          <animate attributeName="r" values="4;7;4" dur="2.4s" repeatCount="indefinite" />
+                        </circle>
 
-                      <!-- 曲线 3: 浙岱渔 (暖金) -->
-                      <path id="svg-curve-v3" d="M 60 280 Q 400 290, 800 250 T 1180 265" fill="none" stroke="#FFBF47" stroke-width="2.5" />
-                      <circle cx="1180" cy="265" r="4" fill="#FFBF47" id="dot-v3" />
+                        <!-- 曲线 3: 浙岱渔 (暖金) -->
+                        <path id="svg-curve-v3" d="M 60 280 Q 400 290, 800 250 T 1180 265" fill="none" stroke="#FFBF47" stroke-width="2.5" />
+                        <circle cx="1180" cy="265" r="4" fill="#FFBF47" id="dot-v3" />
+                      </g>
+
+                      <!-- 分组 2: 全局指标模式大主曲线与科技蓝渐变面积 -->
+                      <g id="svg-group-global" style="display: none;">
+                        <defs>
+                          <linearGradient id="global-curve-grad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#2F8CFF" stop-opacity="0.35" />
+                            <stop offset="100%" stop-color="#2F8CFF" stop-opacity="0.0" />
+                          </linearGradient>
+                        </defs>
+                        <!-- 渐变面积 -->
+                        <path id="svg-global-area" d="M 60 180 Q 350 120, 680 160 T 1180 135 L 1180 300 L 60 300 Z" fill="url(#global-curve-grad)" />
+                        <!-- 宏观大主线 -->
+                        <path id="svg-global-line" d="M 60 180 Q 350 120, 680 160 T 1180 135" fill="none" stroke="#2F8CFF" stroke-width="3.5" filter="drop-shadow(0 0 6px #22D3EE)" />
+                        <circle cx="1180" cy="135" r="6" fill="#22D3EE">
+                          <animate attributeName="r" values="5;8;5" dur="1.8s" repeatCount="indefinite" />
+                        </circle>
+                      </g>
 
                       <!-- X 轴时间刻度 -->
                       <text x="60" y="325" fill="#7893AE" font-size="12" font-family="monospace" id="lbl-time-20">-20 分钟</text>
@@ -1345,8 +1400,62 @@
             </div>
           </div>
 
-          <!-- 面板 2: 针对 inst_04 (时序主曲线 / 滑动回溯窗口配置) -->
+          <!-- 面板 2: 针对 inst_04 (时序主曲线 / 双来源模式与滑动回溯窗口配置) -->
           <div id="inspector-panel-curve" style="display: none;">
+            <div class="inspector-block">
+              <div class="inspector-label-title">数据来源模式 (SOURCE MODE)</div>
+              <div style="display: flex; gap: 14px; margin-bottom: 8px;">
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--lc-cyan); cursor: pointer;">
+                  <input type="radio" name="curve_source_mode" id="rad-curve-source-entity" value="entity" checked onchange="switchCurveSource('entity')">
+                  监控对象槽位
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--lc-muted); cursor: pointer;">
+                  <input type="radio" name="curve_source_mode" id="rad-curve-source-global" value="global" onchange="switchCurveSource('global')">
+                  全局统计指标
+                </label>
+              </div>
+              <div id="tip-curve-source" style="font-size: 11px; color: var(--lc-muted); line-height: 1.4;">
+                💡 监控对象模式：支持指定重点船舶实体槽位，多系列航速趋势同屏对比。
+              </div>
+            </div>
+
+            <!-- 实体模式: 槽位选择 (Slot Binding) -->
+            <div id="sec-curve-entity-slots" class="inspector-block">
+              <div class="inspector-label-title">监控对比系列 (SERIES SLOTS)</div>
+              <div class="inspector-row">
+                <span style="color: var(--lc-secondary); width: 68px;">系列1 (青):</span>
+                <select class="inspector-input" id="sel-curve-slot1" onchange="onCurveSlotChange('slot1', this.value)" style="flex: 1;"></select>
+              </div>
+              <div class="inspector-row">
+                <span style="color: var(--lc-secondary); width: 68px;">系列2 (绿):</span>
+                <select class="inspector-input" id="sel-curve-slot2" onchange="onCurveSlotChange('slot2', this.value)" style="flex: 1;"></select>
+              </div>
+              <div class="inspector-row">
+                <span style="color: var(--lc-secondary); width: 68px;">系列3 (金):</span>
+                <select class="inspector-input" id="sel-curve-slot3" onchange="onCurveSlotChange('slot3', this.value)" style="flex: 1;"></select>
+              </div>
+              <div style="font-size: 11px; color: var(--lc-muted); line-height: 1.4; margin-top: 4px;">
+                💡 支持多槽位船舶实体绑定，分别追踪不同船舶的航速时序。
+              </div>
+            </div>
+
+            <!-- 全局指标模式: 全局数值字段选择 (Zero Slots) -->
+            <div id="sec-curve-global-fields" class="inspector-block" style="display: none;">
+              <div class="inspector-label-title">全局指标字段 (GLOBAL SCHEMA)</div>
+              <div class="inspector-row">
+                <span style="color: var(--lc-secondary); width: 68px;">绑定字段:</span>
+                <select class="inspector-input" id="sel-curve-global-field" onchange="onGlobalCurveFieldChange(this.value)" style="flex: 1;">
+                  <option value="total_vessels">portStats.total_vessels (全港在港船舶总数)</option>
+                  <option value="cargo_count">portStats.cargo_count (在港货轮吞吐数)</option>
+                  <option value="fishing_count">portStats.fishing_count (作业渔船数量)</option>
+                  <option value="warning_count">portStats.warning_count (全港安全告警数)</option>
+                </select>
+              </div>
+              <div style="font-size: 11px; color: var(--lc-ok); line-height: 1.4; margin-top: 6px;">
+                ⚡ 免槽位声明：此模式下零槽位运行，直接绑定宏观港口统计，无需强绑具体船舶实体！
+              </div>
+            </div>
+
             <div class="inspector-block">
               <div class="inspector-label-title">滑动回溯时间窗口 (LOOKBACK WINDOW)</div>
               <div class="inspector-row">
@@ -1362,18 +1471,57 @@
                 💡 窗口内数据真实绘制，未蓄满区间如实留白延伸，超出部分平滑滑出，绝不伪造历史！
               </div>
             </div>
+          </div>
+
+          <!-- 面板 3: 针对进港商船通航名册表格 (inst_05 / 数据时效与超时警示配置) -->
+          <div id="inspector-panel-table" style="display: none;">
+            <div class="inspector-block">
+              <div class="inspector-label-title">表格属性与集合真源</div>
+              <div class="inspector-row">
+                <span style="color: var(--lc-secondary); width: 68px;">控件名称:</span>
+                <span style="font-weight: 600; color: #FFF;">进港商船通航名册</span>
+              </div>
+              <div class="inspector-row">
+                <span style="color: var(--lc-secondary); width: 68px;">数据集合:</span>
+                <span style="font-family: var(--font-mono); color: var(--lc-cyan);">entityStore.vessels (动态集合)</span>
+              </div>
+            </div>
 
             <div class="inspector-block">
-              <div class="inspector-label-title">监控对比系列 (SERIES)</div>
+              <div class="inspector-label-title">数据时效警示 (STALE INDICATION)</div>
+              <div class="inspector-row">
+                <span style="color: var(--lc-secondary);">停更时效弱化:</span>
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--lc-cyan); font-size: 12px;">
+                  <input type="checkbox" id="inspector-table-stale-toggle" checked onchange="toggleTableStale(this.checked)">
+                  <span id="txt-table-stale-state">开启 (超时弱化置灰)</span>
+                </label>
+              </div>
+              <div class="inspector-row" id="row-stale-seconds">
+                <span style="color: var(--lc-secondary); width: 80px;">超时门槛:</span>
+                <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
+                  <input type="number" class="inspector-input" id="input-table-stale-seconds" value="60" min="0" max="3600" step="10" oninput="onTableStaleSecondsChange(this.value)" style="width: 80px; text-align: center;">
+                  <span style="font-size: 12px; color: var(--lc-secondary);">秒</span>
+                </div>
+              </div>
+              <div style="font-size: 11px; color: var(--lc-muted); line-height: 1.4; margin-top: 6px;">
+                💡 超过门槛未接收到新报位的记录，整行将自动呈现弱化置灰样式（.row-stale），并在最后报位时间旁标注 <span style="color: var(--lc-warning); font-weight: 600;">[停更]</span>；关闭开关或门槛设为 0 时恢复常态展示。
+              </div>
+            </div>
+
+            <div class="inspector-block">
+              <div class="inspector-label-title">列配置与展示规范 (COLUMNS)</div>
               <div style="font-size: 12px; color: var(--lc-secondary); line-height: 1.6;">
-                <div>🟦 系列1: 远望1号 (航速时序)</div>
-                <div>🟩 系列2: 海巡01 (航速时序)</div>
-                <div>🟨 系列3: 浙岱渔0455 (航速时序)</div>
+                <div>• 船名: vessel_name (空值保护 '--')</div>
+                <div>• MMSI: mmsi (青色等宽字体)</div>
+                <div>• 类型: vessel_type</div>
+                <div>• 航速: speed kn</div>
+                <div>• 状态: status (状态指示徽标)</div>
+                <div>• 报位时间: lastUpdate (带时钟时效判定)</div>
               </div>
             </div>
           </div>
 
-          <!-- 面板 3: 针对标准卡片 (inst_01, inst_02 等 / 无头与槽位配置) -->
+          <!-- 面板 4: 针对标准卡片 (inst_01, inst_02 等 / 无头与槽位配置) -->
           <div id="inspector-panel-card" style="display: none;">
             <div class="inspector-block">
               <div class="inspector-label-title">卡头外观 (HEADER STYLING)</div>
@@ -1474,11 +1622,11 @@
             </div>
             <div class="asset-item-box">
               <div class="asset-item-name">📊 表格 (TableBox)</div>
-              <div class="asset-item-desc">多列滚动表格，支持空值与真实行高。</div>
+              <div class="asset-item-desc">多列滚动表格，支持空值防穿、真实行高与停更时效置灰弱化。</div>
             </div>
             <div class="asset-item-box">
               <div class="asset-item-name">📈 曲线 (LineChart)</div>
-              <div class="asset-item-desc">矢量 SVG 时序折线，支持回溯窗口与真实留白。</div>
+              <div class="asset-item-desc">矢量 SVG 时序折线，支持多槽位对比与全局宏观指标大盘无槽位切换。</div>
             </div>
           </div>
         </aside>
@@ -1601,7 +1749,7 @@
     const DATA_SCHEMAS = [
       {
         type: "vessel",
-        name: "AIS船舶目标",
+        name: "AIS船舶目标 (实体对象)",
         isEntity: true,
         idField: "mmsi",
         fields: [
@@ -1612,6 +1760,17 @@
           { key: "lon", name: "经度", type: "number", unit: "°E" },
           { key: "lat", name: "纬度", type: "number", unit: "°N" },
           { key: "status", name: "状态", type: "string" }
+        ]
+      },
+      {
+        type: "portStats",
+        name: "港口宏观统计指标 (非实体全局数据)",
+        isEntity: false,
+        fields: [
+          { key: "total_vessels", name: "全港在港船舶总数", type: "number", unit: "艘" },
+          { key: "cargo_count", name: "在港货轮吞吐数", type: "number", unit: "艘" },
+          { key: "fishing_count", name: "作业渔船数量", type: "number", unit: "艘" },
+          { key: "warning_count", name: "全港安全告警数", type: "number", unit: "起" }
         ]
       }
     ];
@@ -1627,7 +1786,8 @@
           heading: 185,
           lon: 121.4582,
           lat: 31.2348,
-          status: "在航"
+          status: "在航",
+          lastUpdate: Date.now() - 6000
         },
         "413000002": {
           mmsi: "413000002",
@@ -1637,7 +1797,8 @@
           heading: 92,
           lon: 121.5204,
           lat: 31.2891,
-          status: "巡航"
+          status: "巡航",
+          lastUpdate: Date.now() - 14000
         },
         "413000003": {
           mmsi: "413000003",
@@ -1647,7 +1808,8 @@
           heading: 260,
           lon: 121.3890,
           lat: 31.1980,
-          status: "作业"
+          status: "作业",
+          lastUpdate: Date.now() - 150000 // 模拟超 2 分钟停更，触发时效弱化警示！
         },
         "413000004": {
           mmsi: "413000004",
@@ -1657,7 +1819,8 @@
           heading: 140,
           lon: 121.4120,
           lat: 31.3115,
-          status: "在航"
+          status: "在航",
+          lastUpdate: Date.now() - 28000
         }
       },
       portStats: {
@@ -1695,8 +1858,20 @@
           bindField: "speed"
         },
         "inst_03": { name: "四指标大盘卡组" },
-        "inst_04": { name: "多船航速时序主曲线", lookbackMinutes: 20 },
-        "inst_05": { name: "进港商船通航名册" }
+        "inst_04": { 
+          name: "多船航速时序主曲线",
+          sourceMode: "entity", // "entity" | "global"
+          slot1: "413000001",
+          slot2: "413000002",
+          slot3: "413000003",
+          globalField: "total_vessels",
+          lookbackMinutes: 20 
+        },
+        "inst_05": { 
+          name: "进港商船通航名册",
+          staleEnabled: true,
+          staleSeconds: 60
+        }
       }
     };
 
@@ -1809,11 +1984,13 @@
       document.getElementById('inspector-comp-name').innerText = instId;
       const pBanner = document.getElementById('inspector-panel-banner');
       const pCurve = document.getElementById('inspector-panel-curve');
+      const pTable = document.getElementById('inspector-panel-table');
       const pCard = document.getElementById('inspector-panel-card');
 
       if (instId === 'inst_00') {
         pBanner.style.display = 'block';
         pCurve.style.display = 'none';
+        pTable.style.display = 'none';
         pCard.style.display = 'none';
         const conf = screenState.instances.inst_00;
         document.getElementById('input-banner-title').value = conf.titleText || "";
@@ -1822,12 +1999,19 @@
       } else if (instId === 'inst_04') {
         pBanner.style.display = 'none';
         pCurve.style.display = 'block';
+        pTable.style.display = 'none';
         pCard.style.display = 'none';
-        const conf = screenState.instances.inst_04;
-        document.getElementById('sel-curve-lookback').value = conf.lookbackMinutes || 20;
+        refreshCurveInspector();
+      } else if (instId === 'inst_05') {
+        pBanner.style.display = 'none';
+        pCurve.style.display = 'none';
+        pTable.style.display = 'block';
+        pCard.style.display = 'none';
+        refreshTableInspector();
       } else {
         pBanner.style.display = 'none';
         pCurve.style.display = 'none';
+        pTable.style.display = 'none';
         pCard.style.display = 'block';
         const conf = screenState.instances[instId];
         if (conf) {
@@ -1849,6 +2033,170 @@
           }
         }
       }
+    }
+
+    /* 曲线属性检查器状态同步 */
+    function refreshCurveInspector() {
+      const conf = screenState.instances.inst_04;
+      if (!conf) return;
+
+      const isEntity = conf.sourceMode !== 'global';
+      const radEntity = document.getElementById('rad-curve-source-entity');
+      const radGlobal = document.getElementById('rad-curve-source-global');
+      if (radEntity) radEntity.checked = isEntity;
+      if (radGlobal) radGlobal.checked = !isEntity;
+
+      const secEntity = document.getElementById('sec-curve-entity-slots');
+      const secGlobal = document.getElementById('sec-curve-global-fields');
+      const tip = document.getElementById('tip-curve-source');
+      if (secEntity) secEntity.style.display = isEntity ? 'block' : 'none';
+      if (secGlobal) secGlobal.style.display = isEntity ? 'none' : 'block';
+      if (tip) {
+        tip.innerText = isEntity
+          ? "💡 监控对象模式：支持指定重点船舶实体槽位，多系列航速趋势同屏对比。"
+          : "💡 全局统计模式：直接绑定全港宏观大盘时序（如在港总数），免槽位声明，零槽位运行！";
+      }
+
+      // 下拉与回溯窗口
+      const selSlot1 = document.getElementById('sel-curve-slot1');
+      const selSlot2 = document.getElementById('sel-curve-slot2');
+      const selSlot3 = document.getElementById('sel-curve-slot3');
+      if (selSlot1) selSlot1.value = conf.slot1 || "413000001";
+      if (selSlot2) selSlot2.value = conf.slot2 || "413000002";
+      if (selSlot3) selSlot3.value = conf.slot3 || "413000003";
+
+      const selGlobal = document.getElementById('sel-curve-global-field');
+      if (selGlobal) selGlobal.value = conf.globalField || "total_vessels";
+
+      const selLookback = document.getElementById('sel-curve-lookback');
+      if (selLookback) selLookback.value = conf.lookbackMinutes || 20;
+    }
+
+    /* 切换曲线数据源模式 (实体槽位 vs 全局宏观指标) */
+    function switchCurveSource(mode) {
+      screenState.instances.inst_04.sourceMode = mode;
+      refreshCurveInspector();
+
+      const isEntity = mode === 'entity';
+      const titleEl = document.getElementById('title-inst_04-text');
+      const legEntity = document.getElementById('legend-inst_04-entity');
+      const legGlobal = document.getElementById('legend-inst_04-global');
+      const grpEntity = document.getElementById('svg-group-entity');
+      const grpGlobal = document.getElementById('svg-group-global');
+
+      const y1 = document.getElementById('axis-y-val-1');
+      const y2 = document.getElementById('axis-y-val-2');
+      const y3 = document.getElementById('axis-y-val-3');
+      const y4 = document.getElementById('axis-y-val-4');
+
+      if (isEntity) {
+        if (titleEl) titleEl.innerText = "重点船舶航速动态时序主曲线";
+        if (legEntity) legEntity.style.display = "flex";
+        if (legGlobal) legGlobal.style.display = "none";
+        if (grpEntity) grpEntity.style.display = "block";
+        if (grpGlobal) grpGlobal.style.display = "none";
+        if (y1) y1.textContent = "25 节";
+        if (y2) y2.textContent = "20 节";
+        if (y3) y3.textContent = "15 节";
+        if (y4) y4.textContent = "10 节";
+        showToast("已切换为【监控对象槽位模式】：支持指定重点船舶实体同屏对比！");
+      } else {
+        const field = screenState.instances.inst_04.globalField || "total_vessels";
+        updateGlobalCurveUI(field);
+        if (legEntity) legEntity.style.display = "none";
+        if (legGlobal) legGlobal.style.display = "flex";
+        if (grpEntity) grpEntity.style.display = "none";
+        if (grpGlobal) grpGlobal.style.display = "block";
+        showToast("已切换为【全局统计指标模式】：免槽位声明，直接绑定港口宏观指标！");
+      }
+    }
+
+    /* 全局宏观指标切换联动 UI */
+    function updateGlobalCurveUI(field) {
+      const titleEl = document.getElementById('title-inst_04-text');
+      const lblGlobal = document.getElementById('lbl-global-current-stat');
+      const y1 = document.getElementById('axis-y-val-1');
+      const y2 = document.getElementById('axis-y-val-2');
+      const y3 = document.getElementById('axis-y-val-3');
+      const y4 = document.getElementById('axis-y-val-4');
+
+      const stats = entityStore.portStats || {};
+      const val = stats[field] !== undefined ? stats[field] : 188;
+
+      if (field === 'total_vessels') {
+        if (titleEl) titleEl.innerText = "港口在港船舶总数实时时序大盘";
+        if (lblGlobal) lblGlobal.innerText = `当前在港: ${val} 艘 (宏观总数)`;
+        if (y1) y1.textContent = "250 艘";
+        if (y2) y2.textContent = "200 艘";
+        if (y3) y3.textContent = "150 艘";
+        if (y4) y4.textContent = "100 艘";
+      } else if (field === 'cargo_count') {
+        if (titleEl) titleEl.innerText = "进港货轮吞吐时序监测主曲线";
+        if (lblGlobal) lblGlobal.innerText = `当前货轮: ${val} 艘`;
+        if (y1) y1.textContent = "100 艘";
+        if (y2) y2.textContent = "80 艘";
+        if (y3) y3.textContent = "60 艘";
+        if (y4) y4.textContent = "40 艘";
+      } else if (field === 'fishing_count') {
+        if (titleEl) titleEl.innerText = "外海作业渔船通航时序主曲线";
+        if (lblGlobal) lblGlobal.innerText = `作业渔船: ${val} 艘`;
+        if (y1) y1.textContent = "120 艘";
+        if (y2) y2.textContent = "90 艘";
+        if (y3) y3.textContent = "60 艘";
+        if (y4) y4.textContent = "30 艘";
+      } else if (field === 'warning_count') {
+        if (titleEl) titleEl.innerText = "全港安全与告警事件动态主曲线";
+        if (lblGlobal) lblGlobal.innerText = `当前告警: ${val} 起`;
+        if (y1) y1.textContent = "10 起";
+        if (y2) y2.textContent = "6 起";
+        if (y3) y3.textContent = "4 起";
+        if (y4) y4.textContent = "2 起";
+      }
+    }
+
+    function onGlobalCurveFieldChange(field) {
+      screenState.instances.inst_04.globalField = field;
+      updateGlobalCurveUI(field);
+      showToast(`已绑定全局宏观指标：portStats.${field}`);
+    }
+
+    function onCurveSlotChange(slotKey, mmsi) {
+      screenState.instances.inst_04[slotKey] = mmsi;
+      const v = entityStore.vessels[mmsi];
+      const name = v ? v.vessel_name : mmsi;
+      const legEl = document.getElementById('legend-curve-' + slotKey);
+      if (legEl) legEl.innerText = `● ${name}`;
+      showToast(`曲线【${slotKey}】已绑定为：${name}`);
+    }
+
+    /* 表格属性检查器状态同步 */
+    function refreshTableInspector() {
+      const conf = screenState.instances.inst_05 || { staleEnabled: true, staleSeconds: 60 };
+      const toggle = document.getElementById('inspector-table-stale-toggle');
+      const txt = document.getElementById('txt-table-stale-state');
+      const inputSec = document.getElementById('input-table-stale-seconds');
+
+      if (toggle) toggle.checked = conf.staleEnabled !== false;
+      if (txt) txt.innerText = (conf.staleEnabled !== false) ? "开启 (超时弱化置灰)" : "关闭 (常态无弱化)";
+      if (inputSec) inputSec.value = (conf.staleSeconds !== undefined) ? conf.staleSeconds : 60;
+    }
+
+    /* 表格数据时效警示开关切换 */
+    function toggleTableStale(checked) {
+      if (!screenState.instances.inst_05) screenState.instances.inst_05 = {};
+      screenState.instances.inst_05.staleEnabled = checked;
+      const txt = document.getElementById('txt-table-stale-state');
+      if (txt) txt.innerText = checked ? "开启 (超时弱化置灰)" : "关闭 (常态无弱化)";
+      renderVesselTable();
+      showToast(checked ? "已开启数据时效警示：超时停更记录将弱化置灰！" : "已关闭时效警示：表格所有行恢复常态显示。");
+    }
+
+    /* 表格数据时效超时门槛调整 (秒) */
+    function onTableStaleSecondsChange(val) {
+      if (!screenState.instances.inst_05) screenState.instances.inst_05 = {};
+      const sec = parseInt(val, 10) || 0;
+      screenState.instances.inst_05.staleSeconds = sec;
+      renderVesselTable();
     }
 
     /* 静态大标题输入即显 */
@@ -2051,21 +2399,41 @@
       }
     }
 
-    /* 渲染商船名册表格 (带空值 '--' 保护) */
+    /* 时间戳格式化辅助函数 (HH:mm:ss) */
+    function formatClockTime(ts) {
+      if (!ts) return "--";
+      const d = new Date(ts);
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    }
+
+    /* 渲染商船名册表格 (带空值 '--' 保护与数据时效停更弱化警示) */
     function renderVesselTable() {
       const tbody = document.getElementById('table-vessels-body');
       if (!tbody) return;
       tbody.innerHTML = "";
 
+      const conf = screenState.instances.inst_05 || { staleEnabled: true, staleSeconds: 60 };
+      const now = Date.now();
+
       Object.values(entityStore.vessels).forEach(v => {
+        const lastTs = v.lastUpdate || now;
+        const ageSec = Math.max(0, (now - lastTs) / 1000);
+        const isStale = (conf.staleEnabled !== false) && (conf.staleSeconds > 0) && (ageSec > conf.staleSeconds);
+        const timeFormatted = formatClockTime(lastTs);
+
         const tr = document.createElement('tr');
+        if (isStale) tr.classList.add('row-stale');
+
         tr.innerHTML = `
-          <td style="font-weight: 700; color: #FFF;">${v.vessel_name || "--"}</td>
+          <td><strong class="vessel-name" style="font-weight: 700; color: #FFF;">${v.vessel_name || "--"}</strong></td>
           <td style="font-family: monospace; color: var(--lc-cyan);">${v.mmsi || "--"}</td>
           <td>${v.vessel_type || "商船"}</td>
           <td style="color: var(--lc-ok); font-weight: 600;">${v.speed !== undefined ? v.speed + " kn" : "--"}</td>
           <td><span class="lc-badge ${v.status === '在航' ? 'underway' : (v.status === '巡航' ? 'patrol' : 'alert')}">● ${v.status || "正常"}</span></td>
-          <td style="font-family: monospace; color: var(--lc-muted); font-size: 11px;">16:50:22</td>
+          <td style="font-family: monospace; font-size: 11px; color: var(--lc-secondary);">
+            ${timeFormatted}${isStale ? '<span class="stale-tag">停更</span>' : ''}
+          </td>
         `;
         tbody.appendChild(tr);
       });
@@ -2094,12 +2462,16 @@
       if (sel1_02) sel1_02.value = screenState.instances.inst_02.slot1;
     }
 
-    /* 属性检查器槽位同步 */
+    /* 属性检查器槽位同步 (含曲线系列槽位) */
     function refreshInspectorSlots() {
       const vessels = Object.values(entityStore.vessels);
       const s1 = document.getElementById('inspector-slot-select');
       const s2 = document.getElementById('inspector-slot2-select');
-      [s1, s2].forEach(s => {
+      const cs1 = document.getElementById('sel-curve-slot1');
+      const cs2 = document.getElementById('sel-curve-slot2');
+      const cs3 = document.getElementById('sel-curve-slot3');
+
+      [s1, s2, cs1, cs2, cs3].forEach(s => {
         if (!s) return;
         s.innerHTML = "";
         vessels.forEach(v => {
@@ -2109,19 +2481,42 @@
           s.appendChild(opt);
         });
       });
+
+      const conf04 = screenState.instances.inst_04;
+      if (conf04) {
+        if (cs1 && conf04.slot1) cs1.value = conf04.slot1;
+        if (cs2 && conf04.slot2) cs2.value = conf04.slot2;
+        if (cs3 && conf04.slot3) cs3.value = conf04.slot3;
+      }
     }
 
+    let streamTicks = 0;
     /* 推流循环模拟 */
     function startStream() {
       if (streamTimer) clearInterval(streamTimer);
       streamTimer = setInterval(() => {
         if (!isStreaming) return;
+        streamTicks++;
 
-        // 随机更新远望1号与海巡01的航速微小波动
+        // 活跃船舶接收推流更新，刷新报位时间与微小航速扰动
         const v1 = entityStore.vessels["413000001"];
         const v2 = entityStore.vessels["413000002"];
-        if (v1) v1.speed = +(v1.speed + (Math.random() * 0.4 - 0.2)).toFixed(1);
-        if (v2) v2.speed = +(v2.speed + (Math.random() * 0.6 - 0.3)).toFixed(1);
+        const v4 = entityStore.vessels["413000004"];
+        const now = Date.now();
+
+        if (v1) {
+          v1.speed = +(v1.speed + (Math.random() * 0.4 - 0.2)).toFixed(1);
+          v1.lastUpdate = now;
+        }
+        if (v2) {
+          v2.speed = +(v2.speed + (Math.random() * 0.6 - 0.3)).toFixed(1);
+          v2.lastUpdate = now;
+        }
+        // 中远海运盛世每 2 次更新一次
+        if (v4 && (streamTicks % 2 === 0)) {
+          v4.lastUpdate = now;
+        }
+        // 注意：浙岱渔0455 (413000003) 故意不刷新 lastUpdate，保持停更状态！
 
         renderCardData("inst_01");
         renderCardData("inst_02");
@@ -2160,13 +2555,15 @@
       }, null, 2);
     }
 
-    // 时钟走字
+    // 时钟走字 (常态每秒触发，同时驱动表格时效重新比对)
     setInterval(() => {
       const el = document.getElementById('screen-live-clock');
       if (el) {
         const d = new Date();
         el.innerText = d.toISOString().replace('T', ' ').substring(0, 19);
       }
+      // ADR 0008 核心：由常态时钟驱动时效判定刷新，停更无推流也能自然置灰
+      renderVesselTable();
     }, 1000);
 
     /* 启动初始化 */
@@ -2190,6 +2587,13 @@
         activateTab('simulator');
       } else if (window.location.hash === '#drawer') {
         openMonitorDrawer();
+      } else if (window.location.hash === '#curve') {
+        focusCard('inst_04');
+      } else if (window.location.hash === '#curve-global') {
+        focusCard('inst_04');
+        switchCurveSource('global');
+      } else if (window.location.hash === '#table') {
+        focusCard('inst_05');
       }
     }
 
