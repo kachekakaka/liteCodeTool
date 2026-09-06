@@ -125,3 +125,11 @@ AI 实施成果报告（`walkthrough.md`）及关键验证记录在系统内部�
 **Vector Adaptive Viewport (矢量自适应视口)**:
 大屏以 1920×1080 为基准逻辑分辨率，核心图表、装饰角与动效均采用矢量 SVG 与百分比栅格体系，外层结合自适应比例缩放引擎，向 2K (2560×1440) 和 4K (3840×2160) 等超高分显示设备平滑扩展，保持边缘绝对锐利与零排版变形。
 - _避免使用 (Avoid)_: Fixed canvas, pixel-locked stage, fixed-width dashboard
+
+**Table Stale Indication (表格陈旧提示)**:
+表格行或单元格依据记录源时间戳与配置的超时门槛（`staleSeconds`）动态呈现的视觉弱化状态，用以警示调度人员该实体已停更，支持自定义秒数阈值或设为 0 关闭。
+- _避免使用 (Avoid)_: Row timeout, offline color, table freeze, expire mask
+
+**Global Time Series (全局时序序列)**:
+时序曲线控件中无需关联任何具体对象槽位、直接绑定全局非实体模式指标（如全港总船数、预警总数）的历史走势数据序列。
+- _避免使用 (Avoid)_: Macro line, system trend, non-entity series, port curve
