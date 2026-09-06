@@ -1,0 +1,2077 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LiteCodeTool - 轻量化低代码大屏平台</title>
+  <style>
+    /* ========================================================================= */
+    /* 核心工业设计系统变量 (Industrial Maritime Design Tokens)                    */
+    /* ========================================================================= */
+    :root {
+      --bg-root: #060911;
+      --bg-header: #0C121E;
+      --bg-panel: #101726;
+      --bg-panel-sub: #141D30;
+      --bg-card: #152035;
+      --bg-card-inner: #0D1524;
+      --border-subtle: #1C2B44;
+      --border-focus: #0284C7;
+      --border-card: #223553;
+
+      --cyan-400: #38BDF8;
+      --cyan-500: #0EA5E9;
+      --blue-500: #3B82F6;
+      --blue-600: #2563EB;
+      --emerald-400: #34D399;
+      --emerald-500: #10B981;
+      --amber-400: #FBBF24;
+      --red-400: #F87171;
+
+      --text-white: #F8FAFC;
+      --text-primary: #E2E8F0;
+      --text-secondary: #94A3B8;
+      --text-muted: #64748B;
+      --text-dim: #475569;
+
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden !important;
+      font-family: var(--font-sans);
+      background-color: var(--bg-root);
+      color: var(--text-primary);
+      user-select: none;
+    }
+
+    /* 全局根布局 */
+    #app-container {
+      display: flex;
+      flex-direction: column;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden !important;
+    }
+
+    /* 顶栏控制中枢 (Top Hub) */
+    header.top-hub {
+      height: 48px;
+      background-color: var(--bg-header);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      flex-shrink: 0;
+      z-index: 100;
+    }
+
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-symbol {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, #0284C7, #1D4ED8);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #FFF;
+      font-weight: 800;
+      font-size: 14px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    }
+    .brand-text-block {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+    .brand-main-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-white);
+      letter-spacing: 0.3px;
+    }
+    .screen-filename {
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      background: rgba(255,255,255,0.04);
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    /* 中部工作台 Tab */
+    .hub-tabs {
+      display: flex;
+      background-color: #080C14;
+      border: 1px solid var(--border-subtle);
+      padding: 2px;
+      border-radius: 6px;
+      gap: 2px;
+    }
+    .hub-tab-btn {
+      padding: 5px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      border: none;
+      background: transparent;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .hub-tab-btn:hover {
+      color: var(--text-white);
+      background-color: rgba(255,255,255,0.03);
+    }
+    .hub-tab-btn.active {
+      color: #FFF;
+      background-color: #1E293B;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    }
+
+    /* 顶栏右侧状态与操作 */
+    .hub-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .ws-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      padding: 3px 10px;
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      border-radius: 12px;
+      color: var(--emerald-400);
+      font-family: var(--font-mono);
+    }
+    .ws-bullet {
+      width: 6px;
+      height: 6px;
+      background-color: var(--emerald-400);
+      border-radius: 50%;
+    }
+
+    /* 模式切换胶囊 (Mode Switcher) */
+    .mode-capsule {
+      display: flex;
+      background: #080C14;
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 2px;
+    }
+    .mode-item-btn {
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      border: none;
+      background: transparent;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .mode-item-btn.active {
+      background-color: var(--blue-600);
+      color: #FFF;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    }
+
+    .btn-ui {
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 5px;
+      border: 1px solid var(--border-subtle);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+      background: var(--bg-panel-sub);
+      color: var(--text-primary);
+    }
+    .btn-ui:hover {
+      background: #1C273E;
+      border-color: #2D4164;
+    }
+    .btn-ui-primary {
+      background: #0284C7;
+      border-color: #0369A1;
+      color: #FFF;
+    }
+    .btn-ui-primary:hover {
+      background: #0369A1;
+    }
+
+    /* 主舞台视口 (Main Viewport) */
+    .viewport-body {
+      flex: 1;
+      display: flex;
+      position: relative;
+      overflow: hidden;
+      width: 100%;
+    }
+
+    /* ========================================================================= */
+    /* 视图 1: 大屏画布编辑器 (Screen Canvas)                                     */
+    /* ========================================================================= */
+    #stage-canvas {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* 左侧组件资产面板 */
+    .side-drawer-left {
+      width: 250px;
+      background-color: var(--bg-panel);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      z-index: 20;
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .drawer-title-row {
+      height: 40px;
+      padding: 0 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-white);
+      letter-spacing: 0.3px;
+    }
+    .drawer-scroll-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .asset-item-box {
+      background: var(--bg-panel-sub);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .asset-item-box:hover {
+      border-color: var(--cyan-400);
+      background: #172338;
+      transform: translateY(-1px);
+    }
+    .asset-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+    .asset-item-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .asset-badge {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      background: rgba(56, 189, 248, 0.1);
+      color: var(--cyan-400);
+      padding: 2px 6px;
+      border-radius: 3px;
+      border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+    .asset-item-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* 中间画布工作台 (支持缩放且永不出现断头遮挡) */
+    .canvas-center-stage {
+      flex: 1;
+      height: 100%;
+      background-color: var(--bg-root);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    /* 大屏外边框与缩放包装层 */
+    .canvas-scale-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s ease;
+    }
+
+    /* 真正的 1920x1080 比例大屏物理画板 (等比自适应) */
+    .screen-board-1080p {
+      width: 1360px;
+      height: 765px; /* 16:9 标准比例 */
+      background: #090E17;
+      border: 1px solid #1F2D44;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.04);
+      border-radius: 4px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 画布内网格主区域 (自排布网格，全画布空间自由分配，彻底移除画布硬编码顶栏) */
+    .screen-inner-grid {
+      flex: 1;
+      padding: 14px;
+      position: relative;
+      display: grid;
+      grid-template-columns: 380px 1fr 400px;
+      grid-template-rows: 52px 240px 1fr;
+      gap: 12px;
+    }
+
+    /* 工业卡片通用样式 (Maritime Industrial Card) */
+    .maritime-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      overflow: hidden;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .maritime-card.active-selected {
+      border-color: var(--cyan-400) !important;
+      box-shadow: 0 0 0 1px var(--cyan-400), 0 8px 24px rgba(0, 0, 0, 0.6) !important;
+    }
+
+    /* 卡片顶头 */
+    .m-card-head {
+      height: 38px;
+      background: rgba(10, 15, 25, 0.6);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+    }
+    .m-card-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-white);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* 选船下拉器 (Slot Selector) */
+    .slot-retarget-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .slot-tag {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+    .slot-select-input {
+      background: #080D17;
+      color: var(--cyan-400);
+      border: 1px solid var(--border-card);
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 6px;
+      outline: none;
+      cursor: pointer;
+      font-family: var(--font-mono);
+    }
+    .slot-select-input:hover, .slot-select-input:focus {
+      border-color: var(--cyan-400);
+    }
+
+    /* 卡片主数据体 */
+    .m-card-body {
+      flex: 1;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* 大字号数值展示 */
+    .hero-stat-row {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+    }
+    .hero-stat-number {
+      font-family: var(--font-mono);
+      font-size: 34px;
+      font-weight: 800;
+      color: #FFF;
+      line-height: 1;
+    }
+    .hero-stat-unit {
+      font-size: 13px;
+      color: var(--cyan-400);
+      font-weight: 600;
+      margin-left: 4px;
+    }
+    .hero-stat-desc {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 5px;
+    }
+
+    /* 状态指示徽标 (Status Light Badge) */
+    .status-capsule {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .status-capsule.underway {
+      background: rgba(16, 185, 129, 0.12);
+      color: var(--emerald-400);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+    }
+    .status-capsule.patrol {
+      background: rgba(59, 130, 246, 0.12);
+      color: var(--cyan-400);
+      border: 1px solid rgba(59, 130, 246, 0.25);
+    }
+    .status-capsule.warning {
+      background: rgba(239, 68, 68, 0.12);
+      color: var(--red-400);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+    }
+
+    /* 辅助字段网格 */
+    .param-grid-box {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      background: var(--bg-card-inner);
+      padding: 8px 10px;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.03);
+    }
+    .param-item-label {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+    .param-item-value {
+      font-size: 12px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-top: 2px;
+    }
+
+    /* 表格组件样式 */
+    .vessel-data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      text-align: left;
+    }
+    .vessel-data-table th {
+      color: var(--text-muted);
+      padding: 7px 6px;
+      border-bottom: 1px solid var(--border-subtle);
+      font-weight: 600;
+    }
+    .vessel-data-table td {
+      padding: 7px 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+
+    /* 曲线图表容器 */
+    .chart-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    /* 图片 / 动图控件样式 (Image & Animation Box) */
+    .ctrl-image-box {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border-radius: 4px;
+      position: relative;
+    }
+    .radar-sweep-scanner {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      position: relative;
+      background: radial-gradient(circle, rgba(2, 132, 199, 0.15) 0%, rgba(2, 132, 199, 0.02) 70%, transparent 100%);
+    }
+    .radar-sweep-scanner::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      border-radius: 50%;
+      background: conic-gradient(from 0deg at 50% 50%, rgba(56, 189, 248, 0.5) 0deg, transparent 60deg, transparent 360deg);
+      animation: radar-spin 3s linear infinite;
+    }
+    .radar-sweep-scanner::after {
+      content: "";
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 6px; height: 6px;
+      background: var(--cyan-400);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+    }
+    @keyframes radar-spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    /* 横幅与卡片级小巧雷达动图 */
+    .radar-mini-scanner {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 1px solid rgba(56, 189, 248, 0.5);
+      position: relative;
+      background: radial-gradient(circle, rgba(2, 132, 199, 0.25) 0%, transparent 70%);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .radar-mini-scanner::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      border-radius: 50%;
+      background: conic-gradient(from 0deg at 50% 50%, rgba(56, 189, 248, 0.7) 0deg, transparent 75deg, transparent 360deg);
+      animation: radar-spin 2.4s linear infinite;
+    }
+    .radar-mini-scanner::after {
+      content: "";
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 4px; height: 4px;
+      background: var(--cyan-400);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 6px var(--cyan-400);
+    }
+    .sonar-circle-box {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(52, 211, 153, 0.4);
+      background: rgba(52, 211, 153, 0.08);
+    }
+    .sonar-wave-pulse {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      border: 1px solid var(--cyan-400);
+      animation: sonar-wave 2s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+      pointer-events: none;
+    }
+    @keyframes sonar-wave {
+      0% { transform: scale(0.5); opacity: 0.9; }
+      100% { transform: scale(1.5); opacity: 0; }
+    }
+
+    /* 右侧属性面板 (Inspector) */
+    .side-drawer-right {
+      width: 290px;
+      background-color: var(--bg-panel);
+      border-left: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      z-index: 20;
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .inspector-block {
+      padding: 14px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .inspector-label-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 10px;
+    }
+    .inspector-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+    .inspector-input {
+      background: var(--bg-panel-sub);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      padding: 5px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      outline: none;
+      width: 155px;
+    }
+    .inspector-input:focus {
+      border-color: var(--border-focus);
+    }
+
+    /* ========================================================================= */
+    /* 显示态真正全屏沉浸模式 (Viewer Fullscreen Mode)                             */
+    /* ========================================================================= */
+    .mode-viewer-fullscreen header.top-hub {
+      display: none !important;
+    }
+    .mode-viewer-fullscreen .side-drawer-left {
+      display: none !important;
+    }
+    .mode-viewer-fullscreen .side-drawer-right {
+      display: none !important;
+    }
+    .mode-viewer-fullscreen .canvas-center-stage {
+      padding: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      background-color: #04070D !important;
+    }
+
+    /* 显示态沉浸悬浮控制岛 (Viewer HUD Island) */
+    .viewer-floating-hud {
+      position: fixed;
+      top: 16px;
+      right: 24px;
+      background: rgba(12, 18, 30, 0.85);
+      border: 1px solid var(--border-card);
+      backdrop-filter: blur(12px);
+      border-radius: 24px;
+      padding: 6px 16px;
+      display: none;
+      align-items: center;
+      gap: 12px;
+      z-index: 99999;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
+      opacity: 0.75;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+    .viewer-floating-hud:hover {
+      opacity: 1;
+      transform: translateY(-1px);
+    }
+    .viewer-floating-hud.show {
+      display: flex;
+    }
+
+    /* ========================================================================= */
+    /* 视图 2: 组件工坊 (Component Workshop)                                     */
+    /* ========================================================================= */
+    #stage-workshop {
+      display: none;
+      width: 100%;
+      height: 100%;
+      background: var(--bg-root);
+    }
+    .workshop-blueprint-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .template-box-stage {
+      width: 440px;
+      height: 290px;
+      background: var(--bg-card);
+      border: 2px dashed #0284C7;
+      border-radius: 8px;
+      box-shadow: 0 16px 36px rgba(0,0,0,0.6);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ========================================================================= */
+    /* 视图 3: 数据模式与推流模拟 (Schema & Simulator)                           */
+    /* ========================================================================= */
+    #stage-simulator {
+      display: none;
+      width: 100%;
+      height: 100%;
+      padding: 24px;
+      gap: 20px;
+      background: var(--bg-root);
+      overflow-y: auto;
+    }
+    .sim-panel-col {
+      flex: 1;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      height: 100%;
+    }
+    .sim-code-area {
+      flex: 1;
+      background: #080C14;
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      padding: 12px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: #38BDF8;
+      overflow: auto;
+      white-space: pre-wrap;
+      line-height: 1.5;
+    }
+
+    /* 吐司通知气泡 */
+    .toast-pill {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1E293B;
+      border: 1px solid var(--border-card);
+      border-left: 4px solid var(--cyan-400);
+      color: #FFF;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.25s ease;
+      z-index: 9999;
+    }
+    .toast-pill.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="app-container">
+    <!-- 顶层统一控制中枢 (Top Hub) -->
+    <header class="top-hub">
+      <div class="brand-wrap">
+        <div class="brand-symbol">L</div>
+        <div class="brand-text-block">
+          <span class="brand-main-title">LiteCodeTool</span>
+          <span class="screen-filename">screen_zhoushan_v1.json</span>
+        </div>
+      </div>
+
+      <!-- 工作台 Tab 切换 -->
+      <nav class="hub-tabs">
+        <button class="hub-tab-btn active" id="tab-btn-canvas" onclick="activateTab('canvas')">
+          <span>🖥️</span> 大屏画布设计器
+        </button>
+        <button class="hub-tab-btn" id="tab-btn-workshop" onclick="activateTab('workshop')">
+          <span>🧩</span> 组件工坊 (模板蓝本)
+        </button>
+        <button class="hub-tab-btn" id="tab-btn-simulator" onclick="activateTab('simulator')">
+          <span>📡</span> 数据模式与推流模拟
+        </button>
+      </nav>
+
+      <!-- 顶栏操作区 -->
+      <div class="hub-actions">
+        <div class="ws-pill">
+          <span class="ws-bullet"></span>
+          <span id="ws-stream-status">推流正常 (1.5s/包)</span>
+        </div>
+
+        <!-- 模式切换：编辑态 vs 显示态 -->
+        <div class="mode-capsule" id="mode-capsule-bar">
+          <button class="mode-item-btn active" id="btn-mode-edit" onclick="setMode('edit')">
+            ✏️ 编辑态
+          </button>
+          <button class="mode-item-btn" id="btn-mode-view" onclick="setMode('view')">
+            👁️ 显示态
+          </button>
+        </div>
+
+        <button class="btn-ui" onclick="toggleStream()" id="btn-stream-switch">⏸️ 暂停模拟</button>
+        <button class="btn-ui" onclick="simulateNewVessel()">🚢 突发新船</button>
+        <button class="btn-ui btn-ui-primary" onclick="saveScreen()">💾 保存配置</button>
+      </div>
+    </header>
+
+    <!-- 舞台主体 (Viewport Body) -->
+    <div class="viewport-body">
+
+      <!-- ===================================================================== -->
+      <!-- 视图 1: 大屏画布设计器                                                 -->
+      <!-- ===================================================================== -->
+      <section id="stage-canvas">
+        <!-- 左侧组件资产抽屉 (编辑态可见) -->
+        <aside class="side-drawer-left" id="drawer-left">
+          <div class="drawer-title-row">
+            <span>📦 组件资产库 (TEMPLATES)</span>
+            <span style="font-size: 10px; color: var(--text-muted);">5 个组件</span>
+          </div>
+          <div class="drawer-scroll-list">
+            <div class="asset-item-box" onclick="showToast('已拖拽添加：大屏自定义横幅 (含动图)')">
+              <div class="asset-item-header">
+                <span class="asset-item-name">大屏自定义横幅</span>
+                <span class="asset-badge" style="background: rgba(56,189,248,0.15); color: var(--cyan-400);">静态+动图</span>
+              </div>
+              <div class="asset-item-desc">静态大标题文本框 + 动态雷达动图组合。</div>
+            </div>
+
+            <div class="asset-item-box" onclick="showToast('已拖拽添加：船舶综合监控卡片')">
+              <div class="asset-item-header">
+                <span class="asset-item-name">船舶综合监控卡片</span>
+                <span class="asset-badge">双船实体</span>
+              </div>
+              <div class="asset-item-desc">航速、航向、经纬度。支持无头纯净模式。</div>
+            </div>
+
+            <div class="asset-item-box" onclick="showToast('已拖拽添加：重点船舶对比曲线')">
+              <div class="asset-item-header">
+                <span class="asset-item-name">多船航速时序曲线</span>
+                <span class="asset-badge">多对象</span>
+              </div>
+              <div class="asset-item-desc">支持横向多选 3~5 条重点船舶航速趋势对比。</div>
+            </div>
+
+            <div class="asset-item-box" onclick="showToast('已拖拽添加：全港船舶统计')">
+              <div class="asset-item-header">
+                <span class="asset-item-name">全港船舶宏观统计</span>
+                <span class="asset-badge">全局模式</span>
+              </div>
+              <div class="asset-item-desc">在港总船数、商船数、渔船数与预警数大盘。</div>
+            </div>
+
+            <div class="asset-item-box" onclick="showToast('已拖拽添加：进港商船滚动清单')">
+              <div class="asset-item-header">
+                <span class="asset-item-name">进港商船动态表格</span>
+                <span class="asset-badge">动态集合</span>
+              </div>
+              <div class="asset-item-desc">动态按条件过滤商船列表，实时推送滚动。</div>
+            </div>
+          </div>
+
+          <div class="drawer-title-row" style="border-top: 1px solid var(--border-subtle);">
+            <span>🧰 原子控件快捷箱</span>
+            <span style="font-size: 10px; color: var(--cyan-400);">双模支持</span>
+          </div>
+          <div class="drawer-scroll-list" style="max-height: 180px;">
+            <div class="asset-item-box" style="padding: 8px 10px;" onclick="showToast('已拖入：🖼️ 图片/动图控件 (ImageBox)')">
+              <div class="asset-item-name" style="font-size: 12px;">🖼️ 图片/动图控件 (ImageBox)</div>
+              <div class="asset-item-desc" style="font-size: 10px;">支持静态图片与雷达/波纹动效。</div>
+            </div>
+            <div class="asset-item-box" style="padding: 8px 10px;" onclick="showToast('已拖入：📝 文本框 (TextBox)')">
+              <div class="asset-item-name" style="font-size: 12px;">📝 文本框 (TextBox)</div>
+              <div class="asset-item-desc" style="font-size: 10px;">支持静态固定录入与动态绑定双模。</div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- 中间大屏视口 (自适应等比画板，杜绝遮挡与滚动条) -->
+        <div class="canvas-center-stage" id="canvas-center-viewport">
+          <div class="canvas-scale-wrapper" id="canvas-scale-box">
+
+            <!-- 1080P 比例真实大屏 (无任何强制硬编码顶栏，100% 自由排布画布) -->
+            <div class="screen-board-1080p" id="screen-main-board">
+
+              <!-- 大屏主排版网格 (Grid 排布，端庄工整) -->
+              <div class="screen-inner-grid">
+
+                <!-- 模块 0: 用户在编辑态自主添加的大屏自定义横幅 (完全由基础控件组合，非系统硬编码) -->
+                <div class="maritime-card active-selected" id="card_inst_00" onclick="focusCard('inst_00')" style="grid-column: 1 / -1; height: 52px; padding: 0 16px; flex-direction: row; align-items: center; justify-content: space-between; background: linear-gradient(90deg, rgba(16, 23, 38, 0.9) 0%, rgba(13, 21, 36, 0.95) 50%, rgba(16, 23, 38, 0.9) 100%); border: 1px solid rgba(56, 189, 248, 0.25); cursor: pointer;" title="点击选中：右侧可自由修改静态大标题文本或动图类型">
+                  <div style="display: flex; align-items: center; gap: 14px;">
+                    <!-- 图片/动图控件 (ImageBox): 动态雷达扫描圈 / 声纳波纹 / 静态标牌 -->
+                    <div class="ctrl-image-box" id="banner-image-box" style="width: 40px; height: 40px;">
+                      <div class="radar-mini-scanner">
+                        <div class="sonar-wave-pulse"></div>
+                      </div>
+                    </div>
+                    
+                    <!-- 静态大标题文本框 (TextBox): 用户可在右侧随时键入修改 -->
+                    <div style="display: flex; align-items: baseline; gap: 10px;">
+                      <span style="font-size: 17px; font-weight: 800; color: #FFF; letter-spacing: 1px;" id="txt_inst_00_title">⚓ 舟山主航道 AIS 船舶实时监管与调度大屏</span>
+                      <span style="font-size: 10px; padding: 2px 7px; border-radius: 3px; background: rgba(56,189,248,0.12); color: var(--cyan-400); border: 1px solid rgba(56,189,248,0.3); font-family: var(--font-mono);" id="badge_inst_00_source">静态文本控件</span>
+                    </div>
+                  </div>
+
+                  <div style="display: flex; align-items: center; gap: 18px; font-size: 12px; color: var(--text-secondary);">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <span style="color: var(--cyan-400);">标牌:</span>
+                      <span id="txt_inst_00_subtitle" style="color: #FFF; font-weight: 500;">西南风 3 级 / 适航</span>
+                    </div>
+                    <div style="font-family: var(--font-mono); color: var(--cyan-400); display: flex; align-items: center; gap: 6px;">
+                      <span style="width: 6px; height: 6px; border-radius: 50%; background: var(--emerald-400); display: inline-block;"></span>
+                      <span id="screen-live-clock">2026-09-06 15:45:00</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 模块 1: 双对象对比卡片 (文本框A显示对象1名字，文本框B显示对象2名字，无头纯净模式) -->
+                <div class="maritime-card" id="card_inst_01" onclick="focusCard('inst_01')">
+                  <!-- 卡头 (默认关闭隐藏，可在属性面板一键重新开启) -->
+                  <div class="m-card-head" id="head_inst_01" style="display: none;">
+                    <div class="m-card-label">
+                      <span>⚓</span> 双船会遇监管
+                    </div>
+                    <div class="slot-retarget-bar">
+                      <span class="slot-tag">对象1:</span>
+                      <select class="slot-select-input" id="sel_slot1_inst_01" onchange="switchMultiSlot('inst_01', 'slot1', this.value)"></select>
+                      <span class="slot-tag">对象2:</span>
+                      <select class="slot-select-input" id="sel_slot2_inst_01" onchange="switchMultiSlot('inst_01', 'slot2', this.value)"></select>
+                    </div>
+                  </div>
+
+                  <div class="m-card-body" style="padding: 14px;">
+                    <!-- 双对象并列区：文本框A为对象1名字，文本框B为对象2名字 -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                      <!-- 对象 1 列 -->
+                      <div style="background: var(--bg-card-inner); padding: 8px 10px; border-radius: 4px; border-left: 3px solid var(--cyan-400);">
+                        <div style="font-size: 10px; color: var(--text-muted);">【对象1】文本框控件</div>
+                        <div style="font-size: 13px; font-weight: 700; color: #FFF; margin-top: 2px;" id="txt_inst_01_slot1_name">远望1号 (413000001)</div>
+                        <div style="margin-top: 6px; display: flex; justify-content: space-between; align-items: flex-end;">
+                          <div>
+                            <span class="hero-stat-number" style="font-size: 26px; color: var(--cyan-400);" id="num_inst_01_slot1_speed">14.2</span>
+                            <span class="hero-stat-unit">节</span>
+                          </div>
+                          <div class="status-capsule underway" style="font-size: 10px;" id="badge_inst_01_slot1_status">● 在航</div>
+                        </div>
+                      </div>
+
+                      <!-- 对象 2 列 -->
+                      <div style="background: var(--bg-card-inner); padding: 8px 10px; border-radius: 4px; border-left: 3px solid var(--emerald-400);">
+                        <div style="font-size: 10px; color: var(--text-muted);">【对象2】文本框控件</div>
+                        <div style="font-size: 13px; font-weight: 700; color: #FFF; margin-top: 2px;" id="txt_inst_01_slot2_name">海巡01 (413000002)</div>
+                        <div style="margin-top: 6px; display: flex; justify-content: space-between; align-items: flex-end;">
+                          <div>
+                            <span class="hero-stat-number" style="font-size: 26px; color: var(--emerald-400);" id="num_inst_01_slot2_speed">18.6</span>
+                            <span class="hero-stat-unit">节</span>
+                          </div>
+                          <div class="status-capsule patrol" style="font-size: 10px;" id="badge_inst_01_slot2_status">● 巡航</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- 双船位置坐标微型对比盒 -->
+                    <div class="param-grid-box" style="margin-top: 8px;">
+                      <div>
+                        <div class="param-item-label">对象1经纬度 (远望1号)</div>
+                        <div class="param-item-value" style="font-size: 11px;" id="loc_inst_01_slot1">121.4582° E, 31.2348° N</div>
+                      </div>
+                      <div>
+                        <div class="param-item-label">对象2经纬度 (海巡01)</div>
+                        <div class="param-item-value" style="font-size: 11px;" id="loc_inst_01_slot2">121.5204° E, 31.2891° N</div>
+                      </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim); margin-top: 6px;">
+                      <span>双船航向: <strong style="color: var(--cyan-400);" id="head_inst_01_slot1">185°</strong> vs <strong style="color: var(--emerald-400);" id="head_inst_01_slot2">092°</strong></span>
+                      <span style="color: var(--text-muted);">多槽位同卡片独立推流</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 模块 2: 宏观统计大盘 (全局模式，无对象槽位) -->
+                <div class="maritime-card" id="card_inst_03" onclick="focusCard('inst_03')">
+                  <div class="m-card-head">
+                    <div class="m-card-label">
+                      <span>📊</span> 全港船舶宏观大盘统计
+                    </div>
+                    <span style="font-size: 11px; color: var(--cyan-400); font-family: var(--font-mono);">全局模式</span>
+                  </div>
+                  <div class="m-card-body">
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+                      <div class="param-grid-box" style="text-align: center;">
+                        <div class="param-item-label">在港总船</div>
+                        <div style="font-size: 22px; font-weight: 800; color: #FFF; font-family: var(--font-mono);" id="stat_total">188</div>
+                      </div>
+                      <div class="param-grid-box" style="text-align: center;">
+                        <div class="param-item-label">商船数量</div>
+                        <div style="font-size: 22px; font-weight: 800; color: var(--cyan-400); font-family: var(--font-mono);" id="stat_cargo">76</div>
+                      </div>
+                      <div class="param-grid-box" style="text-align: center;">
+                        <div class="param-item-label">作业渔船</div>
+                        <div style="font-size: 22px; font-weight: 800; color: var(--amber-400); font-family: var(--font-mono);" id="stat_fishing">94</div>
+                      </div>
+                      <div class="param-grid-box" style="text-align: center;">
+                        <div class="param-item-label">安全预警</div>
+                        <div style="font-size: 22px; font-weight: 800; color: var(--red-400); font-family: var(--font-mono);" id="stat_warn">2</div>
+                      </div>
+                    </div>
+
+                    <div style="background: var(--bg-card-inner); padding: 8px 10px; border-radius: 4px; font-size: 11px; color: var(--text-secondary); line-height: 1.4; margin-top: 8px;">
+                      📢 <strong>通航通告:</strong> 潮位适航，深水航道无异常障碍物，各货轮保持 12~14 节标准进港间距。
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 模块 3: 重点船舶 2 执法监控卡片 (对象1 = 海巡01) -->
+                <div class="maritime-card" id="card_inst_02" onclick="focusCard('inst_02')">
+                  <div class="m-card-head">
+                    <div class="m-card-label">
+                      <span>🚤</span>
+                      <span id="txt_inst_02_name">海巡01 (413000002)</span>
+                    </div>
+                    <div class="slot-retarget-bar">
+                      <span class="slot-tag">对象1:</span>
+                      <select class="slot-select-input" id="sel_slot_inst_02" onchange="switchVessel('inst_02', this.value)">
+                        <!-- 动态注入 -->
+                      </select>
+                    </div>
+                  </div>
+                  <div class="m-card-body">
+                    <div class="hero-stat-row">
+                      <div>
+                        <span class="hero-stat-number" id="num_inst_02_speed">18.6</span>
+                        <span class="hero-stat-unit">节 (kn)</span>
+                        <div class="hero-stat-desc">执法巡航速度</div>
+                      </div>
+                      <div class="status-capsule patrol" id="badge_inst_02_status">
+                        ● 巡航作业 (Patrol)
+                      </div>
+                    </div>
+
+                    <div class="param-grid-box" style="margin: 10px 0;">
+                      <div>
+                        <div class="param-item-label">实时经度 (Lon)</div>
+                        <div class="param-item-value" id="num_inst_02_lon">121.5204° E</div>
+                      </div>
+                      <div>
+                        <div class="param-item-label">实时纬度 (Lat)</div>
+                        <div class="param-item-value" id="num_inst_02_lat">31.2891° N</div>
+                      </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim);">
+                      <span>航向: <strong style="color: var(--text-primary);" id="num_inst_02_heading">092°</strong></span>
+                      <span>通信信道: <span style="color: var(--cyan-400);">VHF CH16</span></span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 模块 4: 多船航速时序历史曲线 (跨 2 列，多对象横向对比) -->
+                <div class="maritime-card" style="grid-column: span 2;" id="card_inst_04" onclick="focusCard('inst_04')">
+                  <div class="m-card-head">
+                    <div class="m-card-label">
+                      <span>📈</span> 重点船舶航速动态对比时序曲线
+                    </div>
+                    <div style="display: flex; gap: 14px; font-size: 11px; font-family: var(--font-mono);">
+                      <span style="color: #38BDF8;">● 远望1号</span>
+                      <span style="color: #34D399;">● 海巡01</span>
+                      <span style="color: #FBBF24;">● 浙岱渔0455</span>
+                    </div>
+                  </div>
+                  <div class="m-card-body" style="padding: 10px 14px;">
+                    <div class="chart-container">
+                      <svg viewBox="0 0 860 300" style="width: 100%; height: 290px;" preserveAspectRatio="none">
+                        <!-- 水平标尺线 -->
+                        <line x1="0" y1="60" x2="860" y2="60" stroke="rgba(255,255,255,0.05)" stroke-dasharray="3"/>
+                        <line x1="0" y1="120" x2="860" y2="120" stroke="rgba(255,255,255,0.05)" stroke-dasharray="3"/>
+                        <line x1="0" y1="180" x2="860" y2="180" stroke="rgba(255,255,255,0.05)" stroke-dasharray="3"/>
+                        <line x1="0" y1="240" x2="860" y2="240" stroke="rgba(255,255,255,0.05)" stroke-dasharray="3"/>
+
+                        <!-- 远望1号 (蓝) -->
+                        <path id="curve-v1" d="M 0 170 Q 200 190, 420 160 T 860 150" fill="none" stroke="#38BDF8" stroke-width="3"/>
+                        <!-- 海巡01 (绿) -->
+                        <path id="curve-v2" d="M 0 110 Q 250 90, 500 120 T 860 100" fill="none" stroke="#34D399" stroke-width="3"/>
+                        <!-- 浙岱渔 (黄) -->
+                        <path id="curve-v3" d="M 0 240 Q 300 250, 600 220 T 860 230" fill="none" stroke="#FBBF24" stroke-width="2.5"/>
+                      </svg>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-dim); font-family: var(--font-mono); margin-top: 4px;">
+                      <span>-20 分钟</span>
+                      <span>-15 分钟</span>
+                      <span>-10 分钟</span>
+                      <span>-5 分钟</span>
+                      <span>当前 (实时推流)</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 模块 5: 商船滚动列表 (表格型控件 - 动态集合模式) -->
+                <div class="maritime-card" id="card_inst_05" onclick="focusCard('inst_05')">
+                  <div class="m-card-head">
+                    <div class="m-card-label">
+                      <span>📋</span> 进港商船通航名册
+                    </div>
+                    <span style="font-size: 10px; color: var(--cyan-400); font-family: var(--font-mono);">动态集合</span>
+                  </div>
+                  <div class="m-card-body" style="padding: 6px 10px; overflow-y: auto;">
+                    <table class="vessel-data-table">
+                      <thead>
+                        <tr>
+                          <th>船名</th>
+                          <th>MMSI</th>
+                          <th>航速</th>
+                          <th>状态</th>
+                        </tr>
+                      </thead>
+                      <tbody id="table-vessels-body">
+                        <!-- 动态渲染 -->
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右侧属性面板 (编辑态可见) -->
+        <aside class="side-drawer-right" id="drawer-right">
+          <div class="drawer-title-row">
+            <span>⚙️ 实例属性检查器</span>
+            <span style="font-size: 11px; color: var(--cyan-400);" id="inspector-comp-name">inst_00</span>
+          </div>
+
+          <!-- 面板 A: 针对 inst_00 (自定义大屏横幅 / 静态标题 & 动图控件) -->
+          <div id="inspector-panel-banner" style="display: block;">
+            <div class="inspector-block">
+              <div class="inspector-label-title">数据源模式 (DATA SOURCE MODE)</div>
+              <div style="display: flex; gap: 14px; margin-bottom: 6px;">
+                <label style="display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--cyan-400); cursor: pointer;">
+                  <input type="radio" name="banner_source" value="static" checked onchange="switchBannerSource('static')">
+                  静态固定录入
+                </label>
+                <label style="display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-muted); cursor: pointer;">
+                  <input type="radio" name="banner_source" value="dynamic" onchange="switchBannerSource('dynamic')">
+                  动态推流绑定
+                </label>
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted); line-height: 1.4;">
+                💡 静态模式下无需数据推流，各类输入框自由输入固定内容（如标题、固定标牌）。
+              </div>
+            </div>
+
+            <div class="inspector-block" id="block-static-inputs">
+              <div class="inspector-label-title">静态文本内容 (STATIC TEXT)</div>
+              <div class="inspector-row">
+                <span style="color: var(--text-secondary); width: 68px;">大屏标题:</span>
+                <input type="text" class="inspector-input" id="input-banner-title" value="⚓ 舟山主航道 AIS 船舶实时监管与调度大屏" oninput="updateStaticTitle(this.value)" style="flex: 1;">
+              </div>
+              <div class="inspector-row">
+                <span style="color: var(--text-secondary); width: 68px;">副标题:</span>
+                <input type="text" class="inspector-input" id="input-banner-sub" value="西南风 3 级 / 适航" oninput="updateStaticSub(this.value)" style="flex: 1;">
+              </div>
+              <div style="font-size: 11px; color: var(--cyan-400); margin-top: 4px;">
+                ⚡ 编辑态实时键入，画布标题即时响应呈现！
+              </div>
+            </div>
+
+            <div class="inspector-block">
+              <div class="inspector-label-title">图片 / 动图控件 (IMAGEBOX)</div>
+              <div class="inspector-row">
+                <span style="color: var(--text-secondary); width: 68px;">动效类型:</span>
+                <select class="inspector-input" id="sel-banner-image-type" onchange="updateImageType(this.value)" style="flex: 1;">
+                  <option value="radar">📡 动态雷达扫描 (CSS无数据动效)</option>
+                  <option value="sonar">🌊 动态声纳波纹 (脉冲扩散动效)</option>
+                  <option value="static_ship">🚢 静态高精船舶标牌 (标牌图)</option>
+                </select>
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted); line-height: 1.4; margin-top: 4px;">
+                💡 即使在没有后端数据推流时，动图控件也能赋予大屏专业高科技质感！
+              </div>
+            </div>
+
+            <div class="inspector-block">
+              <div class="inspector-label-title">布局定位 (GEOMETRY)</div>
+              <div class="inspector-row">
+                <span style="color: var(--text-secondary);">位置排布:</span>
+                <span style="font-family: var(--font-mono); color: var(--cyan-400);">Row 1, 全屏顶栏横幅</span>
+              </div>
+              <div class="inspector-row">
+                <span style="color: var(--text-secondary);">尺寸高度:</span>
+                <span style="font-family: var(--font-mono); color: var(--text-primary);">52px 自定义卡片</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 面板 B: 针对标准业务组件 (inst_01, inst_02 等) -->
+          <div id="inspector-panel-card" style="display: none;">
+            <div class="inspector-block">
+              <div class="inspector-label-title">卡头外观 (HEADER STYLING)</div>
+              <div class="inspector-row">
+                <span style="color: var(--text-secondary);">显示卡头 (标题与选船):</span>
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--cyan-400); font-size: 12px;">
+                  <input type="checkbox" id="inspector-header-toggle" checked onchange="toggleCardHeader(this.checked)">
+                  <span id="txt-header-state">开启 (标准卡片)</span>
+                </label>
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted); line-height: 1.4; margin-top: 4px;">
+                💡 关闭后进入“无头纯净模式”，彻底隐藏系统卡头与下拉框，大屏更纯粹！
+              </div>
+            </div>
+
+            <div class="inspector-block">
+              <div class="inspector-label-title">多对象槽位指派 (SLOT ASSIGNMENT)</div>
+              <div class="inspector-row">
+                <span style="color: var(--text-secondary);">【对象1】实体:</span>
+                <select class="inspector-input" id="inspector-slot-select" onchange="onInspectorSlotChange('slot1', this.value)">
+                  <!-- 动态填充 -->
+                </select>
+              </div>
+              <div class="inspector-row" id="row-inspector-slot2">
+                <span style="color: var(--text-secondary);">【对象2】实体:</span>
+                <select class="inspector-input" id="inspector-slot2-select" onchange="onInspectorSlotChange('slot2', this.value)">
+                  <!-- 动态填充 -->
+                </select>
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted); line-height: 1.4; margin-top: 4px;">
+                ℹ️ 一个卡片内可同时绑定对象1与对象2（如文本框A显示对象1名字，文本框B显示对象2名字）。
+              </div>
+            </div>
+
+            <div class="inspector-block">
+              <div class="inspector-label-title">子控件二级绑定 (FIELD BINDING)</div>
+              <div class="inspector-row">
+                <span style="color: var(--text-secondary);">① 归属对象槽位:</span>
+                <select class="inspector-input" id="inspector-bind-slot-scope">
+                  <option value="slot1">【对象1: 主船】</option>
+                  <option value="slot2">【对象2: 伴随船】</option>
+                </select>
+              </div>
+              <div class="inspector-row">
+                <span style="color: var(--text-secondary);">② 映射具体字段:</span>
+                <select class="inspector-input" id="inspector-field-select" onchange="onInspectorFieldChange(this.value)">
+                  <option value="speed">航速 (speed) [节]</option>
+                  <option value="vessel_name">船名 (vessel_name)</option>
+                  <option value="heading">航向 (heading) [°]</option>
+                  <option value="lon">经度 (lon)</option>
+                  <option value="lat">纬度 (lat)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="inspector-block">
+              <div class="inspector-label-title">布局定位 (GEOMETRY)</div>
+              <div class="inspector-row">
+                <span style="color: var(--text-secondary);">栅格定位:</span>
+                <span style="font-family: var(--font-mono); color: var(--cyan-400);" id="inspector-grid-pos">Row 2, Col 1</span>
+              </div>
+              <div class="inspector-row">
+                <span style="color: var(--text-secondary);">组件模板:</span>
+                <span style="font-family: var(--font-mono); color: var(--text-primary);" id="inspector-tpl-name">tpl_vessel_monitor</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- 显示态悬浮控制栏 (Viewer HUD Island) -->
+        <div class="viewer-floating-hud" id="viewer-hud">
+          <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--emerald-400); font-weight: 600;">
+            <span style="width: 7px; height: 7px; background: var(--emerald-400); border-radius: 50%;"></span>
+            监控投屏中 (排版锁定)
+          </span>
+          <button class="btn-ui" onclick="toggleFullscreen()" id="btn-fs-toggle" style="background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12);">
+            ⛶ 硬件全屏
+          </button>
+          <button class="btn-ui btn-ui-primary" onclick="saveScreen()">
+            💾 固化当前配置
+          </button>
+          <button class="btn-ui" onclick="setMode('edit')" title="也可以直接按键盘 Esc 退出">
+            ✏️ 退出显示态 (Esc)
+          </button>
+        </div>
+      </section>
+
+      <!-- ===================================================================== -->
+      <!-- 视图 2: 组件工坊 (Component Workshop)                                 -->
+      <!-- ===================================================================== -->
+      <section id="stage-workshop">
+        <aside class="side-drawer-left">
+          <div class="drawer-title-row">
+            <span>🧰 7 大核心原子控件</span>
+          </div>
+          <div class="drawer-scroll-list">
+            <div class="asset-item-box" style="border-left: 3px solid var(--cyan-400);">
+              <div class="asset-item-name" style="color: var(--cyan-400);">🖼️ 图片/动图框 (ImageBox)</div>
+              <div class="asset-item-desc">支持静态图片/动图(雷达扫描/声纳)，无数据也能很炫。</div>
+            </div>
+            <div class="asset-item-box" style="border-left: 3px solid var(--emerald-400);">
+              <div class="asset-item-name">📝 文本框 (TextBox)</div>
+              <div class="asset-item-desc">静态固定录入或动态字段绑定双模，支持大屏标题/标牌。</div>
+            </div>
+            <div class="asset-item-box">
+              <div class="asset-item-name">🔢 数值框 (NumberBox)</div>
+              <div class="asset-item-desc">支持大字号数值、单位、颜色告警阈值及趋势。</div>
+            </div>
+            <div class="asset-item-box">
+              <div class="asset-item-name">⏱️ 时间框 (TimeBox)</div>
+              <div class="asset-item-desc">报位时间戳格式化展示、离线历时计算。</div>
+            </div>
+            <div class="asset-item-box">
+              <div class="asset-item-name">🚦 指示灯 (StatusLight)</div>
+              <div class="asset-item-desc">根据状态枚举自动变换红/黄/绿等多态光标。</div>
+            </div>
+            <div class="asset-item-box">
+              <div class="asset-item-name">📊 表格 (TableBox)</div>
+              <div class="asset-item-desc">多列滚动表格，支持多船数据与告警分页。</div>
+            </div>
+            <div class="asset-item-box">
+              <div class="asset-item-name">📈 曲线 (LineChart)</div>
+              <div class="asset-item-desc">时序折线平滑曲线，支持多对象多曲线横向对比。</div>
+            </div>
+          </div>
+        </aside>
+
+        <div class="workshop-blueprint-wrap">
+          <div style="position: absolute; top: 16px; font-size: 13px; color: var(--text-secondary); display: flex; gap: 10px; align-items: center;">
+            <span>正在编辑组件模板: <strong style="color: var(--cyan-400);">船舶综合监控卡片模板 (Template)</strong></span>
+            <button class="btn-ui btn-ui-primary" onclick="showToast('🧩 组件模板已保存至 ../liteCodeTool_datas/templates/，大屏资产库已同步！')">
+              💾 保存入库
+            </button>
+          </div>
+
+          <div class="template-box-stage">
+            <div class="m-card-head">
+              <div class="m-card-label">🚢 [模板] 船舶监控卡片</div>
+              <span class="asset-badge">抽象槽位: 对象1</span>
+            </div>
+            <div class="m-card-body" style="padding: 16px;">
+              <div class="hero-stat-row">
+                <div>
+                  <span class="hero-stat-number" style="color: var(--cyan-400);">{对象1.speed}</span>
+                  <span class="hero-stat-unit">节</span>
+                  <div class="hero-stat-desc">绑定的数据字段: speed</div>
+                </div>
+                <div class="status-capsule underway">● {对象1.status}</div>
+              </div>
+
+              <div class="param-grid-box" style="margin-top: 14px;">
+                <div>
+                  <div class="param-item-label">经度绑定</div>
+                  <div class="param-item-value">{对象1.lon}</div>
+                </div>
+                <div>
+                  <div class="param-item-label">纬度绑定</div>
+                  <div class="param-item-value">{对象1.lat}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================================== -->
+      <!-- 视图 3: 数据模式与推流模拟 (Schema & Simulator)                       -->
+      <!-- ===================================================================== -->
+      <section id="stage-simulator">
+        <div class="sim-panel-col">
+          <div class="drawer-title-row" style="background: transparent; border: none; padding: 0;">
+            <span style="color: var(--cyan-400);">📄 后端数据模式标准契约 (Data Schema)</span>
+            <span style="font-size: 11px; color: var(--text-muted);">GET /api/schemas</span>
+          </div>
+          <div class="sim-code-area" id="box-schema-json"></div>
+        </div>
+
+        <div class="sim-panel-col">
+          <div class="drawer-title-row" style="background: transparent; border: none; padding: 0;">
+            <span style="color: var(--emerald-400);">🧠 前端响应式实体数据池 (Entity Store)</span>
+            <span style="font-size: 11px; color: var(--emerald-400);">内存快照</span>
+          </div>
+          <div class="sim-code-area" id="box-store-json"></div>
+        </div>
+
+        <div class="sim-panel-col">
+          <div class="drawer-title-row" style="background: transparent; border: none; padding: 0;">
+            <span style="color: var(--amber-400);">⚡ WebSocket 增量实时推流帧</span>
+            <span style="font-size: 11px; color: var(--amber-400);">实时监听</span>
+          </div>
+          <div class="sim-code-area" id="box-ws-json"></div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- 提示条 -->
+  <div class="toast-pill" id="global-toast">
+    <span>ℹ️</span> <span id="toast-message">操作完成</span>
+  </div>
+
+  <script>
+    /* ========================================================================= */
+    /* 核心数据层与实体池 (Entity Store & Mock Data)                              */
+    /* ========================================================================= */
+
+    const DATA_SCHEMAS = [
+      {
+        type: "vessel",
+        name: "AIS船舶目标",
+        isEntity: true,
+        idField: "mmsi",
+        fields: [
+          { key: "mmsi", name: "船舶MMSI", type: "string" },
+          { key: "vessel_name", name: "船名", type: "string" },
+          { key: "speed", name: "航速", type: "number", unit: "节" },
+          { key: "heading", name: "航向", type: "number", unit: "°" },
+          { key: "lon", name: "经度", type: "number" },
+          { key: "lat", name: "纬度", type: "number" },
+          { key: "status", name: "航行状态", type: "enum" },
+          { key: "vessel_type", name: "船舶类别", type: "string" }
+        ]
+      },
+      {
+        type: "port_stats",
+        name: "港口通航宏观统计",
+        isEntity: false,
+        fields: [
+          { key: "total_vessels", name: "在港船舶总数", type: "number" },
+          { key: "cargo_count", name: "商船总数", type: "number" },
+          { key: "fishing_count", name: "渔船总数", type: "number" },
+          { key: "warning_count", name: "异常告警数", type: "number" }
+        ]
+      }
+    ];
+
+    // 全局响应式实体数据池 (Entity Store)
+    const entityStore = {
+      vessels: {
+        "413000001": {
+          mmsi: "413000001",
+          vessel_name: "远望1号",
+          vessel_type: "商船",
+          speed: 14.2,
+          heading: 185,
+          lon: 121.4582,
+          lat: 31.2348,
+          status: "在航"
+        },
+        "413000002": {
+          mmsi: "413000002",
+          vessel_name: "海巡01",
+          vessel_type: "执法船",
+          speed: 18.6,
+          heading: 92,
+          lon: 121.5204,
+          lat: 31.2891,
+          status: "巡航"
+        },
+        "413000003": {
+          mmsi: "413000003",
+          vessel_name: "浙岱渔0455",
+          vessel_type: "渔船",
+          speed: 6.8,
+          heading: 270,
+          lon: 121.6110,
+          lat: 31.1980,
+          status: "锚泊"
+        },
+        "413000004": {
+          mmsi: "413000004",
+          vessel_name: "中远海运盛世",
+          vessel_type: "商船",
+          speed: 12.5,
+          heading: 140,
+          lon: 121.4120,
+          lat: 31.3115,
+          status: "在航"
+        }
+      },
+      portStats: {
+        total_vessels: 188,
+        cargo_count: 76,
+        fishing_count: 94,
+        warning_count: 2
+      }
+    };
+
+    // 大屏配置状态 (支持自定义横幅、静态输入、动图与多槽位无头模式)
+    const screenState = {
+      mode: "edit", // 'edit' | 'view'
+      focusedCard: "inst_00",
+      instances: {
+        "inst_00": {
+          name: "自定义大屏横幅",
+          isStatic: true,
+          titleText: "⚓ 舟山主航道 AIS 船舶实时监管与调度大屏",
+          subtitleText: "西南风 3 级 / 适航",
+          imageType: "radar",
+          showHeader: false
+        },
+        "inst_01": { 
+          name: "双船会遇监管卡片",
+          showHeader: false, // 默认隐藏卡头 (纯净无头模式)
+          slot1: "413000001", // 对象1: 远望1号
+          slot2: "413000002", // 对象2: 海巡01
+          bindField: "speed" 
+        },
+        "inst_02": { 
+          name: "执法巡航卡片",
+          showHeader: true,
+          slot1: "413000002", 
+          bindField: "speed" 
+        },
+        "inst_03": { name: "全港船舶宏观大盘", showHeader: true },
+        "inst_04": { name: "多船航速时序历史曲线", showHeader: true },
+        "inst_05": { name: "进港商船通航名册", showHeader: true }
+      }
+    };
+
+    let isStreaming = true;
+    let streamTimer = null;
+
+    /* ========================================================================= */
+    /* 视图切换与自适应缩放引擎                                                  */
+    /* ========================================================================= */
+
+    // Tab 导航激活
+    function activateTab(tabId) {
+      document.querySelectorAll('.hub-tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById('tab-btn-' + tabId).classList.add('active');
+
+      document.getElementById('stage-canvas').style.display = (tabId === 'canvas') ? 'flex' : 'none';
+      document.getElementById('stage-workshop').style.display = (tabId === 'workshop') ? 'flex' : 'none';
+      document.getElementById('stage-simulator').style.display = (tabId === 'simulator') ? 'flex' : 'none';
+
+      const modeCapsule = document.getElementById('mode-capsule-bar');
+      if (modeCapsule) {
+        modeCapsule.style.display = (tabId === 'canvas') ? 'flex' : 'none';
+      }
+
+      if (tabId === 'simulator') {
+        renderSimulatorJSON();
+      } else if (tabId === 'canvas') {
+        fitCanvasScale();
+      }
+    }
+
+    // 智能自适应缩放：在编辑态与显示态分别计算最佳视口，彻底消除死黑边与滚动条
+    function fitCanvasScale() {
+      const stage = document.getElementById('canvas-center-viewport');
+      const wrapper = document.getElementById('canvas-scale-box');
+      if (!stage || !wrapper) return;
+
+      const isViewer = screenState.mode === 'view';
+      // 在显示态下无顶栏无内边距，直接以全屏视口最大化等比展开
+      const availW = isViewer ? window.innerWidth : (stage.clientWidth - 40);
+      const availH = isViewer ? window.innerHeight : (stage.clientHeight - 40);
+      const targetW = 1360;
+      const targetH = 765;
+
+      const scale = Math.min(availW / targetW, availH / targetH);
+      wrapper.style.transform = `scale(${scale.toFixed(3)})`;
+    }
+
+    window.addEventListener('resize', fitCanvasScale);
+
+    // 设置编辑态与显示态
+    function setMode(mode) {
+      screenState.mode = mode;
+      const container = document.getElementById('app-container');
+      const editBtn = document.getElementById('btn-mode-edit');
+      const viewBtn = document.getElementById('btn-mode-view');
+      const hud = document.getElementById('viewer-hud');
+
+      if (mode === 'edit') {
+        container.classList.remove('mode-viewer-fullscreen');
+        if (hud) hud.classList.remove('show');
+        if (editBtn) editBtn.classList.add('active');
+        if (viewBtn) viewBtn.classList.remove('active');
+        showToast("已恢复【编辑态】：顶栏与侧栏已就绪。");
+      } else {
+        container.classList.add('mode-viewer-fullscreen');
+        if (hud) hud.classList.add('show');
+        if (viewBtn) viewBtn.classList.add('active');
+        if (editBtn) editBtn.classList.remove('active');
+        showToast("已进入【显示态】：顶栏已自动隐退，大屏 100% 满屏投屏监控！(按 Esc 随时退出)");
+      }
+
+      setTimeout(fitCanvasScale, 30);
+    }
+
+    // 硬件全屏切换 (F11)
+    function toggleFullscreen() {
+      const fsBtn = document.getElementById('btn-fs-toggle');
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+        if (fsBtn) fsBtn.innerText = "🗗 退出硬件全屏";
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        }
+        if (fsBtn) fsBtn.innerText = "⛶ 硬件全屏";
+      }
+    }
+
+    // 全局快捷键监听：按 Esc 一键切回编辑态
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && screenState.mode === 'view') {
+        setMode('edit');
+      }
+    });
+
+    /* ========================================================================= */
+    /* 业务操作与数据绑定                                                        */
+    /* ========================================================================= */
+
+    // 选中卡片 / 横幅
+    function focusCard(instId) {
+      if (screenState.mode !== 'edit') return;
+      screenState.focusedCard = instId;
+      document.querySelectorAll('.maritime-card').forEach(c => c.classList.remove('active-selected'));
+      const target = document.getElementById('card_' + instId);
+      if (target) target.classList.add('active-selected');
+
+      document.getElementById('inspector-comp-name').innerText = instId;
+      const panelBanner = document.getElementById('inspector-panel-banner');
+      const panelCard = document.getElementById('inspector-panel-card');
+
+      if (instId === 'inst_00') {
+        if (panelBanner) panelBanner.style.display = 'block';
+        if (panelCard) panelCard.style.display = 'none';
+        const conf = screenState.instances.inst_00;
+        if (conf) {
+          const titleInput = document.getElementById('input-banner-title');
+          const subInput = document.getElementById('input-banner-sub');
+          const imgTypeSel = document.getElementById('sel-banner-image-type');
+          if (titleInput) titleInput.value = conf.titleText || "";
+          if (subInput) subInput.value = conf.subtitleText || "";
+          if (imgTypeSel) imgTypeSel.value = conf.imageType || "radar";
+        }
+        return;
+      }
+
+      // 常规业务卡片
+      if (panelBanner) panelBanner.style.display = 'none';
+      if (panelCard) panelCard.style.display = 'block';
+
+      const config = screenState.instances[instId];
+      if (config) {
+        // 卡头显隐开关状态同步
+        const toggle = document.getElementById('inspector-header-toggle');
+        const txtState = document.getElementById('txt-header-state');
+        const isShow = config.showHeader !== false;
+        if (toggle) toggle.checked = isShow;
+        if (txtState) txtState.innerText = isShow ? "开启 (标准卡片)" : "关闭 (纯净无头模式)";
+
+        // 槽位同步
+        const slot1Select = document.getElementById('inspector-slot-select');
+        const slot2Select = document.getElementById('inspector-slot2-select');
+        const slot2Row = document.getElementById('row-inspector-slot2');
+
+        if (slot1Select) slot1Select.value = config.slot1 || "";
+        if (slot2Select && config.slot2) {
+          if (slot2Row) slot2Row.style.display = "flex";
+          slot2Select.value = config.slot2;
+        } else if (slot2Row) {
+          slot2Row.style.display = "none";
+        }
+
+        const tplName = document.getElementById('inspector-tpl-name');
+        if (tplName) tplName.innerText = config.name || instId;
+      }
+    }
+
+    // 静态标题实时输入响应
+    function updateStaticTitle(val) {
+      const conf = screenState.instances.inst_00;
+      if (conf) conf.titleText = val;
+      const el = document.getElementById('txt_inst_00_title');
+      if (el) el.innerText = val;
+    }
+
+    // 静态副标题/标牌实时输入响应
+    function updateStaticSub(val) {
+      const conf = screenState.instances.inst_00;
+      if (conf) conf.subtitleText = val;
+      const el = document.getElementById('txt_inst_00_subtitle');
+      if (el) el.innerText = val;
+    }
+
+    // 图片/动图控件类型切换 (无数据科技动效)
+    function updateImageType(type) {
+      const conf = screenState.instances.inst_00;
+      if (conf) conf.imageType = type;
+      const box = document.getElementById('banner-image-box');
+      if (!box) return;
+
+      if (type === 'radar') {
+        box.innerHTML = `<div class="radar-mini-scanner"><div class="sonar-wave-pulse"></div></div>`;
+        showToast("已切换图片控件：📡 动态雷达扫描圈（零数据高科技感）");
+      } else if (type === 'sonar') {
+        box.innerHTML = `<div class="sonar-circle-box"><div class="sonar-wave-pulse" style="border-color: #34D399; animation-duration: 1.5s;"></div><div style="width:8px;height:8px;border-radius:50%;background:#34D399;box-shadow:0 0 8px #34D399;"></div></div>`;
+        showToast("已切换图片控件：🌊 动态声纳波纹扩散");
+      } else {
+        box.innerHTML = `<div style="font-size:22px;display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:rgba(56,189,248,0.1);border-radius:4px;border:1px solid rgba(56,189,248,0.3);">🚢</div>`;
+        showToast("已切换图片控件：🚢 静态高精船舶标牌");
+      }
+    }
+
+    // 静态输入与动态绑定模式切换
+    function switchBannerSource(mode) {
+      const badge = document.getElementById('badge_inst_00_source');
+      if (mode === 'static') {
+        if (badge) {
+          badge.innerText = "静态文本控件";
+          badge.style.color = "var(--cyan-400)";
+        }
+        showToast("大屏标题已切换为【静态固定录入模式】：可任意键入常量文本！");
+      } else {
+        if (badge) {
+          badge.innerText = "动态绑定字段";
+          badge.style.color = "var(--emerald-400)";
+        }
+        showToast("大屏标题已切换为【动态推流绑定模式】：已关联全局港区状态！");
+      }
+    }
+
+
+    // 切换卡头显隐 (无头纯净模式)
+    function toggleCardHeader(show) {
+      const instId = screenState.focusedCard;
+      if (!instId || !screenState.instances[instId]) return;
+      screenState.instances[instId].showHeader = show;
+
+      const txtState = document.getElementById('txt-header-state');
+      txtState.innerText = show ? "开启 (标准卡片)" : "关闭 (纯净无头模式)";
+
+      const headEl = document.getElementById('head_' + instId);
+      if (headEl) {
+        headEl.style.display = show ? "flex" : "none";
+      }
+
+      showToast(show ? `已开启卡片 ${instId} 标题头` : `已隐藏卡片 ${instId} 标题头，进入无头纯净展示态！`);
+    }
+
+    // 更新各下拉选船列表
+    function refreshSlotOptions() {
+      const vessels = Object.values(entityStore.vessels);
+      const selectors = [
+        document.getElementById('sel_slot1_inst_01'),
+        document.getElementById('sel_slot2_inst_01'),
+        document.getElementById('sel_slot_inst_02'),
+        document.getElementById('inspector-slot-select'),
+        document.getElementById('inspector-slot2-select')
+      ];
+
+      selectors.forEach(sel => {
+        if (!sel) return;
+        const current = sel.value;
+        sel.innerHTML = "";
+        vessels.forEach(v => {
+          const opt = document.createElement('option');
+          opt.value = v.mmsi;
+          opt.textContent = `${v.vessel_name} (${v.mmsi})`;
+          sel.appendChild(opt);
+        });
+        if (current && entityStore.vessels[current]) {
+          sel.value = current;
+        }
+      });
+    }
+
+    // 多槽位切换实体 (Slot Retargeting)
+    function switchMultiSlot(instId, slotKey, mmsi) {
+      if (!screenState.instances[instId]) return;
+      screenState.instances[instId][slotKey] = mmsi;
+
+      renderCardData(instId);
+
+      // 同步右侧属性面板
+      if (screenState.focusedCard === instId) {
+        if (slotKey === 'slot1') document.getElementById('inspector-slot-select').value = mmsi;
+        if (slotKey === 'slot2') document.getElementById('inspector-slot2-select').value = mmsi;
+      }
+      const v = entityStore.vessels[mmsi];
+      showToast(`卡片 ${instId} 的【${slotKey === 'slot1' ? '对象1' : '对象2'}】已换船为：${v ? v.vessel_name : mmsi}`);
+    }
+
+    // 属性面板切换槽位
+    function onInspectorSlotChange(slotKey, mmsi) {
+      const id = screenState.focusedCard;
+      if (!id) return;
+      switchMultiSlot(id, slotKey, mmsi);
+      const sel = document.getElementById(`sel_${slotKey}_${id}`);
+      if (sel) sel.value = mmsi;
+    }
+
+    // 属性面板修改绑定字段
+    function onInspectorFieldChange(fieldKey) {
+      const id = screenState.focusedCard;
+      if (!id || !screenState.instances[id]) return;
+      screenState.instances[id].bindField = fieldKey;
+      renderCardData(id);
+      showToast(`卡片 ${id} 主指标已切换为：${fieldKey}（本地账本秒显）`);
+    }
+
+    // 局部渲染单个卡片数据
+    function renderCardData(instId) {
+      const config = screenState.instances[instId];
+      if (!config) return;
+
+      // 模块 1: 多槽位双船卡片渲染
+      if (instId === 'inst_01') {
+        const v1 = entityStore.vessels[config.slot1];
+        const v2 = entityStore.vessels[config.slot2];
+
+        // 渲染对象 1 控件
+        if (v1) {
+          const name1 = document.getElementById('txt_inst_01_slot1_name');
+          const speed1 = document.getElementById('num_inst_01_slot1_speed');
+          const badge1 = document.getElementById('badge_inst_01_slot1_status');
+          const loc1 = document.getElementById('loc_inst_01_slot1');
+          const head1 = document.getElementById('head_inst_01_slot1');
+
+          if (name1) name1.innerText = `${v1.vessel_name} (${v1.mmsi})`;
+          if (speed1) speed1.innerText = v1.speed !== undefined ? v1.speed : "--";
+          if (loc1) loc1.innerText = `${v1.lon.toFixed(4)}° E, ${v1.lat.toFixed(4)}° N`;
+          if (head1) head1.innerText = `${v1.heading}°`;
+          if (badge1) badge1.innerText = `● ${v1.status}`;
+        }
+
+        // 渲染对象 2 控件
+        if (v2) {
+          const name2 = document.getElementById('txt_inst_01_slot2_name');
+          const speed2 = document.getElementById('num_inst_01_slot2_speed');
+          const badge2 = document.getElementById('badge_inst_01_slot2_status');
+          const loc2 = document.getElementById('loc_inst_01_slot2');
+          const head2 = document.getElementById('head_inst_01_slot2');
+
+          if (name2) name2.innerText = `${v2.vessel_name} (${v2.mmsi})`;
+          if (speed2) speed2.innerText = v2.speed !== undefined ? v2.speed : "--";
+          if (loc2) loc2.innerText = `${v2.lon.toFixed(4)}° E, ${v2.lat.toFixed(4)}° N`;
+          if (head2) head2.innerText = `${v2.heading}°`;
+          if (badge2) badge2.innerText = `● ${v2.status}`;
+        }
+        return;
+      }
+
+      // 普通单船卡片渲染 (inst_02)
+      const v = entityStore.vessels[config.slot1];
+      if (!v) return;
+
+      const nameEl = document.getElementById(`txt_${instId}_name`);
+      const speedEl = document.getElementById(`num_${instId}_speed`);
+      const lonEl = document.getElementById(`num_${instId}_lon`);
+      const latEl = document.getElementById(`num_${instId}_lat`);
+      const headingEl = document.getElementById(`num_${instId}_heading`);
+      const badgeEl = document.getElementById(`badge_${instId}_status`);
+
+      if (nameEl) nameEl.innerText = `${v.vessel_name} (${v.mmsi})`;
+      const bindField = config.bindField || "speed";
+      if (speedEl) speedEl.innerText = v[bindField] !== undefined ? v[bindField] : "--";
+      if (lonEl) lonEl.innerText = v.lon ? `${v.lon.toFixed(4)}° E` : "--";
+      if (latEl) latEl.innerText = v.lat ? `${v.lat.toFixed(4)}° N` : "--";
+      if (headingEl) headingEl.innerText = v.heading ? `${v.heading}°` : "--";
+
+      if (badgeEl) {
+        if (v.status === "在航") {
+          badgeEl.className = "status-capsule underway";
+          badgeEl.innerText = "● 在航 (Underway)";
+        } else if (v.status === "巡航" || v.vessel_type === "执法船") {
+          badgeEl.className = "status-capsule patrol";
+          badgeEl.innerText = "● 巡航作业 (Patrol)";
+        } else {
+          badgeEl.className = "status-capsule warning";
+          badgeEl.innerText = `● ${v.status}`;
+        }
+      }
+    }
+
+    // 渲染商船名册表格
+    function renderVesselTable() {
+      const tbody = document.getElementById('table-vessels-body');
+      if (!tbody) return;
+      const cargos = Object.values(entityStore.vessels).filter(v => v.vessel_type === "商船");
+      tbody.innerHTML = cargos.map(v => `
+        <tr>
+          <td style="font-weight: 700; color: #FFF;">${v.vessel_name}</td>
+          <td>${v.mmsi}</td>
+          <td style="color: var(--cyan-400);">${v.speed} kn</td>
+          <td><span style="color: var(--emerald-400);">● ${v.status}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    /* ========================================================================= */
+    /* WebSocket 实时推流模拟引擎                                                */
+    /* ========================================================================= */
+
+    function toggleStream() {
+      isStreaming = !isStreaming;
+      const btn = document.getElementById('btn-stream-switch');
+      const pill = document.getElementById('ws-stream-status');
+      if (isStreaming) {
+        btn.innerText = "⏸️ 暂停模拟";
+        pill.innerText = "推流正常 (1.5s/包)";
+        startStream();
+        showToast("已恢复 WebSocket 模拟推流");
+      } else {
+        btn.innerText = "▶️ 开启推流";
+        pill.innerText = "推流已挂起";
+        clearInterval(streamTimer);
+        showToast("已暂停 WebSocket 模拟推流");
+      }
+    }
+
+    function startStream() {
+      clearInterval(streamTimer);
+      streamTimer = setInterval(() => {
+        if (!isStreaming) return;
+
+        // 远望1号微调
+        const v1 = entityStore.vessels["413000001"];
+        if (v1) {
+          v1.speed = +(v1.speed + (Math.random() * 0.4 - 0.2)).toFixed(1);
+          v1.lon = +(v1.lon + 0.0001).toFixed(4);
+          renderCardData("inst_01");
+        }
+
+        // 海巡01微调
+        const v2 = entityStore.vessels["413000002"];
+        if (v2) {
+          v2.speed = +(v2.speed + (Math.random() * 0.6 - 0.3)).toFixed(1);
+          renderCardData("inst_02");
+        }
+
+        // 宏观统计微调
+        if (Math.random() > 0.6) {
+          entityStore.portStats.cargo_count += (Math.random() > 0.5 ? 1 : -1);
+          document.getElementById('stat_cargo').innerText = entityStore.portStats.cargo_count;
+        }
+
+        renderVesselTable();
+      }, 1500);
+    }
+
+    // 模拟新船入港
+    function simulateNewVessel() {
+      const newMMSI = "413000999";
+      entityStore.vessels[newMMSI] = {
+        mmsi: newMMSI,
+        vessel_name: "雪龙2号极地科考船",
+        vessel_type: "商船",
+        speed: 15.8,
+        heading: 120,
+        lon: 121.7820,
+        lat: 31.0540,
+        status: "在航"
+      };
+
+      refreshSlotOptions();
+      renderVesselTable();
+      renderSimulatorJSON();
+      showToast("🚢 突发新船入港：【雪龙2号 (413000999)】已并入实体池，可立即在卡片中切换！");
+    }
+
+    // 保存大屏配置
+    function saveScreen() {
+      showToast("💾 大屏实例配置已热写入 ../liteCodeTool_datas/screens/，零重启无感生效！");
+    }
+
+    // 渲染 JSON 查看器
+    function renderSimulatorJSON() {
+      document.getElementById('box-schema-json').innerText = JSON.stringify(DATA_SCHEMAS, null, 2);
+      document.getElementById('box-store-json').innerText = JSON.stringify(entityStore, null, 2);
+      document.getElementById('box-ws-json').innerText = JSON.stringify({
+        type: "vessel",
+        id: "413000001",
+        timestamp: Date.now(),
+        data: {
+          speed: entityStore.vessels["413000001"].speed,
+          lon: entityStore.vessels["413000001"].lon
+        }
+      }, null, 2);
+    }
+
+    // 气泡提示
+    function showToast(msg) {
+      const toast = document.getElementById('global-toast');
+      document.getElementById('toast-message').innerText = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // 时钟
+    setInterval(() => {
+      const el = document.getElementById('screen-live-clock');
+      if (el) {
+        const d = new Date();
+        el.innerText = d.toISOString().replace('T', ' ').substring(0, 19);
+      }
+    }, 1000);
+
+    // 启动初始化
+    window.addEventListener('DOMContentLoaded', () => {
+      refreshSlotOptions();
+      renderCardData("inst_01");
+      renderCardData("inst_02");
+      renderVesselTable();
+      focusCard("inst_00"); // 初始聚焦大屏自定义横幅，直观呈现静态输入与动图控件属性
+      fitCanvasScale();
+      startStream();
+
+      // 支持以 URL Hash 直接直达对应工作台或显示态
+      if (window.location.hash === '#view') {
+        setMode('view');
+      } else if (window.location.hash === '#workshop') {
+        activateTab('workshop');
+      } else if (window.location.hash === '#simulator') {
+        activateTab('simulator');
+      }
+    });
+  </script>
+</body>
+</html>

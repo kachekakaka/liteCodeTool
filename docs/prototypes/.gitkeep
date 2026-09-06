@@ -1,0 +1,3 @@
+# 原型 / 契约真源
+若是 GUI 界面工具，原型真源文件统一定为 docs/prototypes/prototype.html，新页面原地 Tab 扩展。
+若是 CLI / 脚本工具，此处存放交互形态与输入输出契约定义。
