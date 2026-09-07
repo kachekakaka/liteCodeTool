@@ -10,8 +10,26 @@ import { checkpoint } from '../../stores/screens.ts';
 import { useEditing } from '../../composables/useEditing.ts';
 const page = usePageMode();
 const { selectedTemplate } = useEditing();
+/**
+ * 读取检查器表单控件的字符串值，数值转换由调用方按字段语义处理。
+ *
+ * @param e - 来自 input 或 select 的表单事件。
+ * @returns 事件目标的 value 字符串。
+ */
 const v = (e: Event) => (e.target as HTMLInputElement).value;
+/**
+ * 读取检查器复选框是否选中。
+ *
+ * @param e - 复选框变化事件。
+ * @returns 复选框 checked 布尔值。
+ */
 const checked = (e: Event) => (e.target as HTMLInputElement).checked;
+/**
+ * 修改工坊模板或选中实例的标题栏显示开关。
+ *
+ * @param event - 标题栏显示复选框事件。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function header(event: Event) {
   if (page.mode === 'workshop' && templateState.draft)
     templateState.draft.showHeader = checked(event);
@@ -40,6 +58,11 @@ const showResetSubTitle = computed(() => {
   if (page.mode === 'workshop') return templateState.draft?.subTitle !== undefined;
   return selectedInstance.value?.subTitle !== undefined;
 });
+/**
+ * 移除显式副标题配置；实例恢复继承模板，模板恢复按槽位生成的默认文案。
+ *
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function resetSubTitle() {
   if (page.mode === 'workshop' && templateState.draft) {
     delete templateState.draft.subTitle;
@@ -48,6 +71,12 @@ function resetSubTitle() {
     delete selectedInstance.value.subTitle;
   }
 }
+/**
+ * 修改工坊模板名称或实例私有标题，模板空名称回退为未命名模板。
+ *
+ * @param event - 标题输入事件；首尾空白会被去除。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function changeInstanceTitle(event: Event) {
   const val = v(event);
   if (page.mode === 'workshop' && templateState.draft) {
@@ -57,6 +86,12 @@ function changeInstanceTitle(event: Event) {
     selectedInstance.value.title = val.trim();
   }
 }
+/**
+ * 更新模板或实例副标题，允许空字符串显式隐藏。
+ *
+ * @param event - 副标题输入事件；首尾空白会被去除。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function changeInstanceSubTitle(event: Event) {
   const val = v(event);
   if (page.mode === 'workshop' && templateState.draft) {

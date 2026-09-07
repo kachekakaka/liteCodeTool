@@ -24,6 +24,11 @@ import CanvasProperties from './inspector/CanvasProperties.vue';
 const page = usePageMode();
 const { selectedTemplate, selectedControl, displayControl, select } = useEditing();
 const tab = ref('data');
+/**
+ * 移除当前实例对选中控件的全部私有覆盖，使其重新继承模板默认配置。
+ *
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function resetOverride() {
   if (!selectedInstance.value || !selectedControl.value) return;
   checkpoint();

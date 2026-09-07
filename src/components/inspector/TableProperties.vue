@@ -5,11 +5,36 @@ import type { ControlProps } from '../../types.ts';
 
 import { useEditing } from '../../composables/useEditing.ts';
 const { selectedTemplate, displayControl, select, patchControl } = useEditing();
+/**
+ * 读取检查器表单控件的字符串值，数值转换由调用方按字段语义处理。
+ *
+ * @param e - 来自 input 或 select 的表单事件。
+ * @returns 事件目标的 value 字符串。
+ */
 const v = (e: Event) => (e.target as HTMLInputElement).value;
+/**
+ * 读取检查器复选框是否选中。
+ *
+ * @param e - 复选框变化事件。
+ * @returns 复选框 checked 布尔值。
+ */
 const checked = (e: Event) => (e.target as HTMLInputElement).checked;
+/**
+ * 通过统一编辑入口合并当前控件属性，自动区分模板草稿与实例覆盖。
+ *
+ * @param patch - 待修改的控件属性子集；未提供的属性保留原值。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function props(patch: Partial<ControlProps>) {
   patchControl({ props: patch });
 }
+/**
+ * 将输入转换为有限数值后更新指定控件属性。
+ *
+ * @param key - 数值属性名；lookbackMinutes 用分钟，gapSeconds、staleSeconds、autoPageSeconds 用秒，pageSize 为行数。
+ * @param event - 包含待转换字符串的输入事件。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function numberProp(
   key: 'lookbackMinutes' | 'gapSeconds' | 'pageSize' | 'staleSeconds' | 'autoPageSeconds',
   event: Event,
@@ -20,6 +45,12 @@ function numberProp(
 const tableSchema = computed(() =>
   dataState.schemas.find((s) => s.type === displayControl.value?.props.schemaType),
 );
+/**
+ * 按过滤字段类型保存匹配值；数值字段的空输入保存为 null。
+ *
+ * @param event - 表格过滤值输入事件。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function filterValue(event: Event) {
   const f = tableSchema.value?.fields.find(
     (f) => f.key === displayControl.value?.props.filterField,
@@ -27,6 +58,13 @@ function filterValue(event: Event) {
   const value = v(event);
   props({ filterValue: f?.type === 'number' ? (value === '' ? null : Number(value)) : value });
 }
+/**
+ * 根据复选框状态添加或移除表格展示列。
+ *
+ * @param key - 需要显示或隐藏的字段键名。
+ * @param event - 列选择复选框事件。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function column(key: string, event: Event) {
   const list = displayControl.value?.props.columns ?? [];
   props({ columns: checked(event) ? [...list, key] : list.filter((k) => k !== key) });

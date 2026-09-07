@@ -1,3 +1,12 @@
+/**
+ * 请求 JSON API，合并调用方取消信号与 10 秒超时，并提取 ETag 版本。
+ *
+ * @param url - API 相对路径或完整地址。
+ * @param options - fetch 请求选项，默认空对象；有请求体时自动添加 JSON Content-Type。
+ * @returns 兑现为 data 和 revision 的 Promise；data 按 T 使用，不额外进行运行时类型校验，缺少 ETag 时 revision 为空字符串。
+ * @typeParam T - 调用方期望的 JSON 响应类型。
+ * @throws 网络、超时、取消或 JSON 解析失败时拒绝；非成功 HTTP 响应抛出的 Error 附带 status。
+ */
 export async function request<T>(
   url: string,
   options: RequestInit = {},

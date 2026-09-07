@@ -6,6 +6,12 @@ import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const target = path.resolve(root, '../liteCodeTool_tmp/offline-resources');
+/**
+ * 从命令行读取路径选项，并转换为绝对路径。
+ *
+ * @param name - 完整选项名，例如 --node-dir；存在选项时其后必须提供路径。
+ * @returns 选项对应的绝对路径；没有该选项时为 undefined。
+ */
 const option = (name) => {
   const i = process.argv.indexOf(name);
   return i >= 0 ? path.resolve(process.argv[i + 1]) : undefined;
@@ -35,9 +41,21 @@ for (const [source, name] of [
   if (path.resolve(source) !== dest)
     await fs.cp(source, dest, {
       recursive: true,
+      /**
+       * 准备工具链时跳过编辑器用户数据、缓存及日志目录。
+       * @param p - 当前待复制文件或目录的完整路径。
+       * @returns 不属于 data、User、CachedData 或 logs 目录时为 true。
+       */
       filter: (p) => !['data', 'User', 'CachedData', 'logs'].includes(path.basename(p)),
     });
 }
+/**
+ * 定位普通或带版本子目录的 VS Code 安装中的 CLI 入口。
+ *
+ * @param dir - VS Code 安装根目录。
+ * @returns 兑现为 resources/app/out/cli.js 的完整路径的 Promise。
+ * @throws 所有候选位置均不存在时拒绝并报告未找到 CLI。
+ */
 async function cliPath(dir) {
   const direct = path.join(dir, 'resources/app/out/cli.js');
   try {
@@ -74,6 +92,12 @@ for (const name of await fs.readdir(path.join(target, 'vsix'))) {
   );
   if (run.status !== 0) throw new Error('VSIX 安装失败：' + name);
 }
+/**
+ * 读取离线资源文件并计算 SHA256，用于工具链清单校验。
+ *
+ * @param file - 需要计算摘要的文件路径。
+ * @returns 兑现为小写 SHA256 十六进制字符串的 Promise。
+ */
 const sha = async (file) =>
   createHash('sha256')
     .update(await fs.readFile(file))

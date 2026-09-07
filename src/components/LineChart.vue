@@ -18,6 +18,12 @@ const hover = ref<number | null>(null);
 
 const minutes = computed(() => props.control.props.lookbackMinutes ?? 20);
 
+/**
+ * 把历史点时间转换为坐标轴使用的时分文本。
+ *
+ * @param time - 时间戳，单位毫秒。
+ * @returns 中文本地时间的 24 小时时分字符串。
+ */
 const timeLabel = (time: number) =>
   new Date(time).toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit' });
 
@@ -170,21 +176,56 @@ const xExtents = computed(() => {
 });
 
 // 坐标映射
+/**
+ * 将滑动时间窗口内的时间映射到 SVG 横坐标。
+ *
+ * @param time - 数据点时间戳，单位毫秒。
+ * @returns SVG 逻辑横坐标；窗口左右边界对应 58 与 1174。
+ */
 const x = (time: number) =>
   58 + ((time - (dataState.now - minutes.value * 60000)) / (minutes.value * 60000)) * 1116;
 
+/**
+ * 将时序曲线数值映射到 SVG 纵坐标，按当前值域反向映射。
+ *
+ * @param value - 数据点数值，与当前纵轴值域使用相同单位。
+ * @returns SVG 逻辑纵坐标，基线为 284，绘图区高度为 238。
+ */
 const y = (value: number) => 284 - ((value - min.value) / (max.value - min.value || 1)) * 238;
 
+/**
+ * 按字段值域将双轴航迹 X 值映射到 SVG 横坐标。
+ *
+ * @param xVal - 航迹 X 轴原始数值。
+ * @returns SVG 逻辑横坐标。
+ */
 const mapFieldX = (xVal: number) =>
   58 + ((xVal - xExtents.value.min) / (xExtents.value.max - xExtents.value.min || 1)) * 1116;
 
+/**
+ * 按字段值域将双轴航迹 Y 值映射到 SVG 纵坐标。
+ *
+ * @param yVal - 航迹 Y 轴原始数值。
+ * @returns SVG 逻辑纵坐标。
+ */
 const mapFieldY = (yVal: number) =>
   284 - ((yVal - yExtents.value.min) / (yExtents.value.max - yExtents.value.min || 1)) * 238;
 
 // 时序折线路径
+/**
+ * 将有序时序点拆成连续线段，遇到 null 或超出断线阈值时留白。
+ *
+ * @param points - 按时间升序排列的历史点；调用方负责窗口筛选。
+ * @returns 各连续段的折线路径、面积路径和末点坐标；不会跨空值强行连线。
+ */
 const paths = (points: Point[]) => {
   const result: { d: string; areaD: string; lastX: number; lastY: number }[] = [];
   let current: Point[] = [];
+  /**
+   * 将当前连续点段写入折线结果，并清空分段缓冲。
+   *
+   * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+   */
   const flush = () => {
     if (current.length) {
       const lineD = current
@@ -214,6 +255,12 @@ const paths = (points: Point[]) => {
 };
 
 // 空间航迹路径（按时间顺序连接采样对）
+/**
+ * 按时间排序双轴航迹，生成 SVG 路径及最新坐标标记。
+ *
+ * @param s - 包含已对齐 trajectoryPoints 的曲线数据。
+ * @returns 路径、最新点屏幕坐标和原始 X/Y 值；无航迹点时返回 null。
+ */
 const trajectoryPath = (s: { trajectoryPoints: TrajectoryPoint[] }) => {
   const tPoints = s.trajectoryPoints;
   if (!tPoints || !tPoints.length) return null;
@@ -276,6 +323,12 @@ const tooltip = computed(() => {
   });
 });
 
+/**
+ * 将鼠标在 SVG 中的位置转换为绘图区内的悬停比例。
+ *
+ * @param event - 图表鼠标移动事件，使用 currentTarget 获取 SVG 显示边界。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function move(event: MouseEvent) {
   const box = (event.currentTarget as SVGElement).getBoundingClientRect();
   hover.value = Math.max(
@@ -291,6 +344,12 @@ const currentHeight = computed(() => {
 
 const isCompact = computed(() => currentHeight.value < 135);
 
+/**
+ * 生成字段横轴五个等距刻度的标签，使用字段精度和单位。
+ *
+ * @param n - 从 1 到 5 的刻度序号。
+ * @returns 格式化后的刻度值及可选单位。
+ */
 const xFieldLabel = (n: number) => {
   const val = xExtents.value.min + ((n - 1) / 4) * (xExtents.value.max - xExtents.value.min);
   const prec = xFieldMeta.value?.precision ?? 2;

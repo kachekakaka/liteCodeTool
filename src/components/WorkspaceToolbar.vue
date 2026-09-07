@@ -14,6 +14,12 @@ const { setView, loadScreen, newScreen, importConfiguration, editTemplate, saveT
 import { usePageMode } from '../composables/usePageMode.ts';
 const page = usePageMode();
 defineProps<{ scale: number }>();
+/**
+ * 读取工具栏表单控件的当前字符串值。
+ *
+ * @param e - 来自 input 或 select 的表单事件。
+ * @returns 事件目标的 value 字符串。
+ */
 const valueOf = (e: Event) => (e.target as HTMLInputElement).value;
 </script>
 <template>

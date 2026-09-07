@@ -39,12 +39,33 @@ export const schemas = [
     ],
   },
 ];
+/**
+ * 生成默认船舶对象槽位，ID 和标签从 1 开始编号。
+ *
+ * @param n - 需要生成的槽位数量。
+ * @returns schemaType 为 vessel 的槽位数组。
+ */
 const slots = (n) =>
   Array.from({ length: n }, (_, i) => ({
     id: `slot_${i + 1}`,
     label: `对象${i + 1}`,
     schemaType: 'vessel',
   }));
+/**
+ * 组装默认控件配置，统一几何、样式、属性和绑定结构。
+ *
+ * @param id - 控件 ID。
+ * @param type - 控件类型，例如 text、number 或 line。
+ * @param x - 左侧逻辑坐标，单位像素。
+ * @param y - 顶部逻辑坐标，单位像素。
+ * @param w - 逻辑宽度，单位像素。
+ * @param h - 逻辑高度，单位像素。
+ * @param fontSize - 基础字号，单位像素。
+ * @param props - 控件专属属性，默认空对象。
+ * @param binding - 字段绑定，默认 null 表示未绑定。
+ * @param color - 文字或主题颜色，默认 #DBF4FF。
+ * @returns 符合控件契约的配置对象。
+ */
 const control = (
   id,
   type,
@@ -57,9 +78,42 @@ const control = (
   binding = null,
   color = '#DBF4FF',
 ) => ({ id, type, style: { x, y, w, h, fontSize, color }, props, binding });
+/**
+ * 生成引用模板对象槽位字段的动态绑定。
+ *
+ * @param field - 数据模式中的字段键名。
+ * @param slotId - 对象槽位 ID，默认 slot_1。
+ * @returns target 为 slot 的字段绑定对象。
+ */
 const bind = (field, slotId = 'slot_1') => ({ target: 'slot', slotId, field });
+/**
+ * 创建使用槽位字段的动态数值控件。
+ *
+ * @param id - 控件 ID。
+ * @param field - 绑定的数值字段键名。
+ * @param x - 左侧逻辑坐标，单位像素。
+ * @param y - 顶部逻辑坐标，单位像素。
+ * @param w - 逻辑宽度，单位像素。
+ * @param h - 逻辑高度，单位像素。
+ * @param size - 字号，默认 32 像素。
+ * @param slot - 对象槽位 ID，默认 slot_1。
+ * @param color - 文字颜色，默认 #22D3EE。
+ * @returns 带动态来源和槽位绑定的数值控件。
+ */
 const number = (id, field, x, y, w, h, size = 32, slot = 'slot_1', color = '#22D3EE') =>
   control(id, 'number', x, y, w, h, size, { sourceMode: 'dynamic' }, bind(field, slot), color);
+/**
+ * 创建固定高度为 38 逻辑像素的动态文本控件。
+ *
+ * @param id - 控件 ID。
+ * @param field - 绑定的文本字段键名。
+ * @param x - 左侧逻辑坐标，单位像素。
+ * @param y - 顶部逻辑坐标，单位像素。
+ * @param w - 逻辑宽度，单位像素。
+ * @param size - 字号，默认 24 像素。
+ * @param slot - 对象槽位 ID，默认 slot_1。
+ * @returns 带动态来源和槽位绑定的文本控件。
+ */
 const name = (id, field, x, y, w, size = 24, slot = 'slot_1') =>
   control(id, 'text', x, y, w, 38, size, { sourceMode: 'dynamic' }, bind(field, slot));
 const rules = [
@@ -288,6 +342,19 @@ for (const type of ['text', 'number', 'time', 'light', 'image', 'table', 'line']
     ],
   });
 }
+/**
+ * 构造引用现有模板的默认大屏实例，初始层级为 1。
+ *
+ * @param id - 组件实例 ID。
+ * @param templateId - 引用的模板 ID。
+ * @param x - 左侧逻辑坐标，单位像素。
+ * @param y - 顶部逻辑坐标，单位像素。
+ * @param w - 逻辑宽度，单位像素。
+ * @param h - 逻辑高度，单位像素。
+ * @param slotBindings - 槽位 ID 到实体 ID 的指派表，默认空对象。
+ * @param controlOverrides - 控件 ID 到私有覆盖的映射，默认空对象。
+ * @returns 包含位置、指派与覆盖配置的组件实例。
+ */
 const instance = (id, templateId, x, y, w, h, slotBindings = {}, controlOverrides = {}) => ({
   instanceId: id,
   templateId,
@@ -295,7 +362,20 @@ const instance = (id, templateId, x, y, w, h, slotBindings = {}, controlOverride
   slotBindings,
   controlOverrides,
 });
+/**
+ * 构造主港区默认大屏，演示模式下预先指派演示对象。
+ *
+ * @param demo - 是否使用演示绑定，默认 false；真实模式保留空槽位指派。
+ * @returns 新的默认大屏配置，包含横幅、指标卡、曲线和表格等实例。
+ */
 export function defaultScreen(demo = false) {
+  /**
+   * 按所在 defaultScreen 的模式生成演示槽位指派。
+   *
+   * @param count - 需要绑定的槽位数量，默认 1。
+   * @param start - 演示实体编号起点，默认 1。
+   * @returns 演示模式返回槽位到演示实体的映射；真实模式返回空对象。
+   */
   const bound = (count = 1, start = 1) =>
     demo
       ? Object.fromEntries(
@@ -334,6 +414,12 @@ export function defaultScreen(demo = false) {
     ],
   };
 }
+/**
+ * 生成初始演示船舶与港区统计数据，供演示启动和推流使用。
+ *
+ * @param now - 数据源时间戳，单位毫秒，默认 Date.now()。
+ * @returns 包含 8 艘船舶和 1 份全局统计的数据包数组。
+ */
 export function demoEnvelopes(now = Date.now()) {
   const list = [
     ['远望1号', '商船', 14.2, '在航'],

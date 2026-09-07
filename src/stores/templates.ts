@@ -5,6 +5,7 @@ import { dataState } from './entities.ts';
 import { uid } from '../utils/identity.ts';
 import { notify } from './application.ts';
 import { request } from '../services/http.ts';
+/** 模板资源库、各资源的 ETag 和唯一工坊草稿；草稿与库中对象相互独立。 */
 export const templateState = reactive({
   templates: [] as ComponentTemplate[],
   templateRevisions: {} as Record<string, string>,
@@ -15,6 +16,12 @@ export const templateState = reactive({
 export const draftDirty = computed(
   () => !!templateState.draft && JSON.stringify(templateState.draft) !== templateState.savedDraft,
 );
+/**
+ * 校验并保存模板草稿，按版本确认影响范围；异步响应不会覆盖另一模板草稿。
+ *
+ * @param asNew - 是否另存为新模板，默认 false；true 会分配新 ID 并追加副本名称。
+ * @returns 当前草稿保存成功时兑现为模板 ID；取消、无草稿、正在保存、失败或草稿已切换时为 undefined。
+ */
 export async function saveTemplate(asNew = false): Promise<string | undefined> {
   if (!templateState.draft || templateState.draftSaving) return;
   const before = JSON.stringify(templateState.draft);
@@ -60,6 +67,12 @@ export async function saveTemplate(asNew = false): Promise<string | undefined> {
     templateState.draftSaving = false;
   }
 }
+/**
+ * 创建独立编辑草稿并建立比较基线，避免直接修改模板库对象。
+ *
+ * @param template - 已有模板；省略时生成含默认对象槽位的空白模板。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 export function prepareTemplate(template?: ComponentTemplate): void {
   templateState.draft = template
     ? clone(template)

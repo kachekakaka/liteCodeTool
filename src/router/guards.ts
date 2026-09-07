@@ -13,6 +13,11 @@ export const resourceState = reactive({ loading: false, error: '', missing: fals
 let sequence = 0;
 let controller: AbortController | undefined;
 
+/**
+ * 根据工坊草稿是否已入库确定可恢复的标准入口。
+ *
+ * @returns 已有模板的 /workshop/:id 路径；无草稿或未入库时为 /workshop/new。
+ */
 function currentTemplateRoute() {
   const draft = templateState.draft;
   return draft && templateState.templateRevisions[draft.id]
@@ -20,6 +25,11 @@ function currentTemplateRoute() {
     : '/workshop/new';
 }
 
+/**
+ * 优先恢复当前大屏，其次读取当前数据模式的最近访问记录，最后回退默认大屏。
+ *
+ * @returns 当前可用的大屏 ID；本地存储不可用时仍可回退。
+ */
 function lastScreen() {
   if (screenState.screen) return screenState.screen.id;
   try {
@@ -31,6 +41,12 @@ function lastScreen() {
   return defaultScreenId;
 }
 
+/**
+ * 注册统一导航守卫，完成初始化、旧地址转换、草稿确认与可取消资源加载。错误页始终保留目标资源身份。
+ *
+ * @param router - 应用唯一的 Vue Router 实例；应在应用启动时注册一次。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 export function installGuards(router: Router) {
   router.beforeEach(async (to) => {
     if (uiState.importing || uiState.creating) {
@@ -113,6 +129,13 @@ export function installGuards(router: Router) {
 }
 
 class ResourceError extends Error {
+  /**
+   * 构造携带资源缺失标记的路由错误。
+   *
+   * @param message - 面向用户的错误原因。
+   * @param missing - 是否属于资源缺失或标识无效，用于选择错误页状态。
+   * @returns 新建的 ResourceError 实例。
+   */
   constructor(
     message: string,
     public missing: boolean,

@@ -11,8 +11,20 @@ import {
 import { templateState } from '../stores/templates.ts';
 import { useNavigation } from './useNavigation.ts';
 import { resourceState } from '../router/guards.ts';
+/**
+ * 在页面生命周期内注册保存、撤销、删除和退出快捷键，并避开输入框与弹层冲突。
+ *
+ * @param mode - 页面模式：editor 为大屏编辑，workshop 为模板工坊，viewer 为显示态。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 export function useEditorKeyboard(mode: 'editor' | 'workshop' | 'viewer') {
   const navigation = useNavigation();
+  /**
+   * 根据页面模式和当前焦点分发快捷键；资源加载、新建或导入期间不处理。
+   *
+   * @param event - 窗口键盘事件；命中快捷键时会阻止对应默认行为。
+   * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+   */
   function keyboard(event: KeyboardEvent) {
     if (resourceState.loading || uiState.importing || uiState.creating) return;
     if (uiState.help) {

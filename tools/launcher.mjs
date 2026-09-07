@@ -20,6 +20,11 @@ if (!Number.isInteger(port) || port < 1024 || port > 65535) {
 }
 const host = '127.0.0.1';
 const url = `http://${host}:${port}/${demo ? 'viewer' : ''}`;
+/**
+ * 探测配置端口上的健康接口，用于判断服务是否就绪或端口是否被其他模式占用。
+ *
+ * @returns 成功时兑现为健康接口 JSON；超时（600 毫秒）、请求失败或非成功响应时为 null。
+ */
 async function health() {
   try {
     const r = await fetch(`http://${host}:${port}/api/health`, {
@@ -30,6 +35,11 @@ async function health() {
     return null;
   }
 }
+/**
+ * 使用当前操作系统默认浏览器打开服务地址；传入 --no-open 时跳过。
+ *
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function openBrowser() {
   if (process.argv.includes('--no-open')) return;
   const command =
@@ -95,6 +105,11 @@ const child = spawn(
 );
 let stopping = false,
   exited = false;
+/**
+ * 仅终止本次启动的后端子进程；重复调用不会再次发送信号。
+ *
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function stop() {
   if (stopping) return;
   stopping = true;

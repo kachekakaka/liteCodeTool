@@ -73,12 +73,29 @@ const instance: ComponentInstance = {
   slotBindings: { slot_1: 'A', slot_2: 'B' },
   controlOverrides: {},
 };
+/**
+ * 构造最小船舶数据包，供核心逻辑单测复用。
+ *
+ * @param data - 测试字段及其标量值。
+ * @param timestamp - 源时间戳，单位毫秒，默认 1000。
+ * @param id - 实体 ID，默认 A。
+ * @returns type 为 vessel 的测试数据包。
+ */
 const packet = (data: Envelope['data'], timestamp = 1000, id = 'A'): Envelope => ({
   type: 'vessel',
   id,
   timestamp,
   data,
 });
+/**
+ * 使用测试模板与数据模式调用值解析函数，减少用例中的重复准备。
+ *
+ * @param store - 用例使用的实体池。
+ * @param i - 组件实例，省略时使用测试默认实例。
+ * @param c - 待解析控件，省略时使用测试默认控件。
+ * @param now - 当前时间戳，单位毫秒，默认 2000。
+ * @returns 控件的显示值、元信息和时效状态。
+ */
 const resolve = (store: EntityStore, i = instance, c = control, now = 2000) =>
   resolveValue(c, template, i, store, schemas, now);
 
@@ -311,6 +328,12 @@ test('全局统计曲线：validateTemplate 与 validateScreen 允许合法全�
 });
 
 test('全局统计曲线：Series 配置缺少 schemaType 或 field 非数值时被拒绝', () => {
+  /**
+   * 构造只含一条待校验全局曲线的测试模板，用于验证错误绑定会被拒绝。
+   *
+   * @param series - 需要放入模板的曲线配置，可故意传入非法值。
+   * @returns 供校验用例使用的独立模板对象。
+   */
   const tpl = (series: any): ComponentTemplate => ({
     id: 'tpl_err',
     name: '错误模板',

@@ -47,12 +47,31 @@ const current = computed(
       ?.slotBindings[target.value.slotId],
 );
 
+/**
+ * 按 ID 获取抽屉中实例对应的模板。
+ *
+ * @param id - 组件模板 ID。
+ * @returns 匹配的模板；未找到时为 undefined。
+ */
 const templateOf = (id: string) => templateState.templates.find((t) => t.id === id);
 
+/**
+ * 为对象指派列表解析实体名称，缺少名称时回退实体 ID。
+ *
+ * @param type - 实体的数据模式标识。
+ * @param id - 实体 ID；省略或为空时表示未绑定。
+ * @returns 实体名称、ID 或未绑定对象文案。
+ */
 function name(type: string, id?: string): string {
   return id ? String(dataState.store.get(type, id)?.data.vessel_name ?? id) : '未绑定对象';
 }
 
+/**
+ * 从抽屉输入框更新大屏名称，并保留撤销快照。
+ *
+ * @param event - 大屏名称输入事件。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function renameScreen(event: Event) {
   if (screenState.screen) {
     checkpoint();
@@ -60,6 +79,13 @@ function renameScreen(event: Event) {
   }
 }
 
+/**
+ * 修改指定实例的私有标题，并记录撤销快照。
+ *
+ * @param instanceId - 待修改的组件实例 ID。
+ * @param event - 标题输入事件。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function updateInstanceTitle(instanceId: string, event: Event) {
   const inst = screenState.screen?.components.find((i) => i.instanceId === instanceId);
   if (inst) {
@@ -86,6 +112,12 @@ watch(
   },
 );
 
+/**
+ * 将 Tab 焦点限制在抽屉内，按 Escape 关闭抽屉并避免向外层重复分发。
+ *
+ * @param event - 抽屉内部的键盘事件。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function trap(event: KeyboardEvent) {
   if (event.key === 'Escape') {
     event.stopPropagation();
@@ -109,6 +141,12 @@ function trap(event: KeyboardEvent) {
   }
 }
 
+/**
+ * 将抽屉当前目标槽位指派给选中的实体。
+ *
+ * @param id - 实体 ID；空字符串用于解除指派。
+ * @returns 对象改绑及底账补查的 Promise，不携带业务返回值。
+ */
 const choose = (id: string) => retarget(target.value.instanceId, target.value.slotId, id);
 </script>
 <template>

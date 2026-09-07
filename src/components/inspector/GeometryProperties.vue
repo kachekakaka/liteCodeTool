@@ -8,7 +8,20 @@ import { checkpoint } from '../../stores/screens.ts';
 import { useEditing } from '../../composables/useEditing.ts';
 const { selectedTemplate, displayControl, patchControl } = useEditing();
 const geometryKeys: (keyof Geometry)[] = ['x', 'y', 'w', 'h'];
+/**
+ * 读取检查器表单控件的字符串值，数值转换由调用方按字段语义处理。
+ *
+ * @param e - 来自 input 或 select 的表单事件。
+ * @returns 事件目标的 value 字符串。
+ */
 const v = (e: Event) => (e.target as HTMLInputElement).value;
+/**
+ * 更新选中控件或实例的位置尺寸，并将结果约束到对应画布边界。
+ *
+ * @param key - 位置尺寸字段 x、y、w 或 h，均为逻辑像素。
+ * @param event - 数值输入事件；非有限数值不应用。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function position(key: keyof Geometry, event: Event) {
   const n = Number(v(event));
   if (!Number.isFinite(n)) return;

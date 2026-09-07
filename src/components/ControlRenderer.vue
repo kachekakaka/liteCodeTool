@@ -44,6 +44,11 @@ const textDraft = ref('');
 
 const textInputRef = ref<HTMLInputElement | null>(null);
 
+/**
+ * 进入静态文本就地编辑并选中输入内容；动态值和时钟不允许直接编辑。
+ *
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function startEditText() {
   if (c.value.props.sourceMode === 'dynamic' || c.value.props.clock) return;
   editingText.value = true;
@@ -54,6 +59,11 @@ function startEditText() {
   });
 }
 
+/**
+ * 提交就地编辑文本；工坊更新控件本身，大屏更新实例覆盖，空白输入回退原值。
+ *
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function commitText() {
   if (!editingText.value) return;
   editingText.value = false;
@@ -74,6 +84,11 @@ function commitText() {
   }
 }
 
+/**
+ * 取消就地编辑，将输入草稿恢复为当前生效文本。
+ *
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function cancelText() {
   editingText.value = false;
   textDraft.value = (c.value.props.staticValue ?? value.value.value ?? '') + '';

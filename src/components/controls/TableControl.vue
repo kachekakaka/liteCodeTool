@@ -91,6 +91,12 @@ const shown = computed(() =>
   rows.value.slice(page.value * pageSize.value, (page.value + 1) * pageSize.value),
 );
 
+/**
+ * 根据船舶状态选择表格状态文字样式。
+ *
+ * @param value - 原始状态字段值。
+ * @returns 告警、正常或作业对应的 CSS 类名；未映射状态返回空字符串。
+ */
 const statusClass = (value: unknown) =>
   value === '告警'
     ? 'cell-danger'
@@ -104,6 +110,12 @@ const staleEnabled = computed(() => c.value.props.staleEnabled !== false);
 
 const staleSeconds = computed(() => c.value.props.staleSeconds ?? 120);
 
+/**
+ * 结合表格开关和当前时钟判断一行实体是否过期。
+ *
+ * @param record - 含 timestamps 的实体记录。
+ * @returns 已启用时效判定且整行超过阈值时为 true。
+ */
 const isRowStale = (record: any) =>
   staleEnabled.value && isRecordStale(record, staleSeconds.value, dataState.now);
 </script>

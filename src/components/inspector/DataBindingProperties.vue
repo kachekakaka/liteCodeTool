@@ -9,7 +9,19 @@ import { notify } from '../../stores/application.ts';
 import { useEditing } from '../../composables/useEditing.ts';
 const page = usePageMode();
 const { selectedTemplate, selectedControl, displayControl, select, patchControl } = useEditing();
+/**
+ * 读取检查器表单控件的字符串值，数值转换由调用方按字段语义处理。
+ *
+ * @param e - 来自 input 或 select 的表单事件。
+ * @returns 事件目标的 value 字符串。
+ */
 const v = (e: Event) => (e.target as HTMLInputElement).value;
+/**
+ * 读取检查器复选框是否选中。
+ *
+ * @param e - 复选框变化事件。
+ * @returns 复选框 checked 布尔值。
+ */
 const checked = (e: Event) => (e.target as HTMLInputElement).checked;
 const schema = computed(() =>
   dataState.schemas.find(
@@ -44,13 +56,32 @@ const resolved = computed(() =>
       )
     : null,
 );
+/**
+ * 通过统一编辑入口合并当前控件属性，自动区分模板草稿与实例覆盖。
+ *
+ * @param patch - 待修改的控件属性子集；未提供的属性保留原值。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function props(patch: Partial<ControlProps>) {
   patchControl({ props: patch });
 }
+/**
+ * 切换控件静态或动态数据模式；首次转为动态且无绑定时尝试绑定默认槽位。
+ *
+ * @param mode - static 表示固定值，dynamic 表示从字段取值。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function mode(mode: 'static' | 'dynamic') {
   props({ sourceMode: mode });
   if (mode === 'dynamic' && !displayControl.value?.binding) bindTarget('slot');
 }
+/**
+ * 切换全局或对象槽位绑定，选取适配字段并重置自动标签、单位和精度。
+ *
+ * @param target - slot 使用模板对象槽位，global 使用非实体数据模式。
+ * @param key - 槽位 ID 或全局 schemaType；默认空字符串时使用首个合适选项。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function bindTarget(target: 'slot' | 'global', key = '') {
   const t = selectedTemplate.value;
   if (!t) return;
@@ -76,6 +107,12 @@ function bindTarget(target: 'slot' | 'global', key = '') {
     props: { sourceMode: 'dynamic', labelMode: 'auto', unitMode: 'auto', precision: null },
   });
 }
+/**
+ * 更换已有绑定的字段，同时恢复自动标签、单位和字段默认精度。
+ *
+ * @param event - 字段选择事件。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function changeField(event: Event) {
   if (!displayControl.value?.binding) return;
   patchControl({
@@ -83,6 +120,12 @@ function changeField(event: Event) {
     props: { labelMode: 'auto', unitMode: 'auto', precision: null },
   });
 }
+/**
+ * 保存固定值；数值控件转换为 number，数值输入为空时保存 null。
+ *
+ * @param event - 固定值输入事件。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function staticValue(event: Event) {
   const text = v(event);
   props({
@@ -90,6 +133,13 @@ function staticValue(event: Event) {
       displayControl.value?.type === 'number' ? (text === '' ? null : Number(text)) : text,
   });
 }
+/**
+ * 将输入转换为有限数值后更新指定控件属性。
+ *
+ * @param key - 数值属性名；lookbackMinutes 用分钟，gapSeconds、staleSeconds、autoPageSeconds 用秒，pageSize 为行数。
+ * @param event - 包含待转换字符串的输入事件。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function numberProp(
   key: 'lookbackMinutes' | 'gapSeconds' | 'pageSize' | 'staleSeconds' | 'autoPageSeconds',
   event: Event,
@@ -97,6 +147,12 @@ function numberProp(
   const n = Number(v(event));
   if (Number.isFinite(n)) props({ [key]: n });
 }
+/**
+ * 切换标签和单位的自动继承开关，并以当前显示内容初始化自定义值。
+ *
+ * @param event - 自定义标签与单位复选框事件。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function custom(event: Event) {
   const enabled = checked(event);
   props({

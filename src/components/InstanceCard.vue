@@ -60,6 +60,12 @@ const showHeader = computed(() => props.instance.showHeader ?? props.template.sh
 
 const currentSubTitle = computed(() => effectiveSubTitle(props.instance, props.template));
 
+/**
+ * 把控件逻辑位置转换为卡片内百分比布局，并按实例或工坊尺寸计算显示字号。
+ *
+ * @param control - 模板中的原始控件；计算前会合并当前实例覆盖。
+ * @returns 可绑定到 Vue style 的位置、尺寸、字号和颜色对象。
+ */
 const geometry = (control: Control) => {
   const c = effectiveControl(control, props.instance);
   const scaleRatio = Math.min(
@@ -89,6 +95,11 @@ const geometry = (control: Control) => {
   };
 };
 
+/**
+ * 开始就地编辑卡片标题，使用实例覆盖或模板名作为初始内容并聚焦输入框。
+ *
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function startEditTitle() {
   editingTitle.value = true;
   titleDraft.value = props.instance.title ?? props.template.name;
@@ -98,6 +109,11 @@ function startEditTitle() {
   });
 }
 
+/**
+ * 提交标题到工坊模板或大屏实例；空白输入回退模板名，并在大屏模式记录撤销。
+ *
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function commitTitle() {
   if (!editingTitle.value) return;
   editingTitle.value = false;
@@ -113,11 +129,21 @@ function commitTitle() {
   }
 }
 
+/**
+ * 取消标题编辑，恢复实例标题或模板名称。
+ *
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function cancelTitle() {
   editingTitle.value = false;
   titleDraft.value = props.instance.title ?? props.template.name;
 }
 
+/**
+ * 开始就地编辑副标题，按实例覆盖、模板配置和默认文案填充输入框。
+ *
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function startEditSubTitle() {
   editingSubTitle.value = true;
   subTitleDraft.value =
@@ -130,6 +156,11 @@ function startEditSubTitle() {
   });
 }
 
+/**
+ * 提交去除首尾空白的副标题；允许空字符串以显式隐藏副标题。
+ *
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function commitSubTitle() {
   if (!editingSubTitle.value) return;
   editingSubTitle.value = false;
@@ -142,11 +173,22 @@ function commitSubTitle() {
   }
 }
 
+/**
+ * 取消副标题编辑并恢复当前生效文案。
+ *
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function cancelSubTitle() {
   editingSubTitle.value = false;
   subTitleDraft.value = currentSubTitle.value;
 }
 
+/**
+ * 按工坊或大屏模式选中控件或实例；显示态不修改选中状态。
+ *
+ * @param controlId - 控件 ID；默认空字符串表示选中整张卡片。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function choose(controlId = '') {
   if (!viewing.value) {
     if (props.workshop) screenState.selectedControl = controlId;
@@ -154,6 +196,14 @@ function choose(controlId = '') {
   }
 }
 
+/**
+ * 分发主指针按下操作：显示态处理触摸长按，编辑态选中或发出拖动事件。
+ *
+ * @param event - 指针按下事件；非主按键忽略。
+ * @param controlId - 目标控件 ID；默认空字符串表示卡片实例。
+ * @param resize - 是否请求尺寸缩放，默认 false 表示移动。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function pointerDown(event: PointerEvent, controlId = '', resize = false) {
   if (event.button !== 0) return;
   if (viewing.value) {
@@ -169,15 +219,31 @@ function pointerDown(event: PointerEvent, controlId = '', resize = false) {
   emit('drag', { event, instanceId: props.instance.instanceId, controlId, resize });
 }
 
+/**
+ * 保留卡片悬停事件入口；按钮显隐由样式负责，此方法不自动弹出对象面板。
+ *
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function enter() {
   /* 悬停仅浮现右上角切换按钮 ⇄，不自动弹出大面板 */
 }
 
+/**
+ * 指针离开卡片且焦点不在卡片内部时关闭对象切换浮层。
+ *
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function leave() {
   if (!document.activeElement?.closest(`[data-instance="${props.instance.instanceId}"]`))
     popover.value = false;
 }
 
+/**
+ * 在显示态为触摸长按设置 500 毫秒计时器，用于打开对象切换浮层。
+ *
+ * @param event - 触摸指针事件；工坊、非触摸或无槽位卡片不启动计时。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function touch(event: PointerEvent) {
   if (props.workshop || event.pointerType !== 'touch' || !props.template.slots.length) return;
   touchStart = { x: event.clientX, y: event.clientY };
@@ -186,15 +252,39 @@ function touch(event: PointerEvent) {
   }, 500);
 }
 
+/**
+ * 触摸移动超过 8 屏幕像素时取消长按，避免拖动手势误弹浮层。
+ *
+ * @param event - 指针移动事件，其屏幕坐标与长按起点比较。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function move(event: PointerEvent) {
   if (Math.hypot(event.clientX - touchStart.x, event.clientY - touchStart.y) > 8)
     clearTimeout(touchTimer);
 }
 
+/**
+ * 清除尚未触发的触摸长按计时器。
+ *
+ * @returns 无返回值（undefined）。
+ */
 const cancelTouch = () => clearTimeout(touchTimer);
 
+/**
+ * 读取卡片槽位可切换的实体候选项。
+ *
+ * @param type - 槽位所使用的数据模式标识。
+ * @returns 实体 ID 与记录引用组成的数组，排除全局数据。
+ */
 const options = (type: string) => dataState.store.list(type);
 
+/**
+ * 读取槽位下拉框的值并切换当前实例的对象指派。
+ *
+ * @param slot - 待切换的模板槽位 ID。
+ * @param event - 目标实体选择事件，空值表示解除指派。
+ * @returns 对象改绑和底账补查的 Promise，不携带业务返回值。
+ */
 const changeTarget = (slot: string, event: Event) =>
   retarget(props.instance.instanceId, slot, (event.target as HTMLSelectElement).value);
 

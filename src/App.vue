@@ -11,8 +11,19 @@ import HelpDialog from './components/HelpDialog.vue';
 import ObjectDrawer from './components/ObjectDrawer.vue';
 const router = useRouter(),
   route = useRoute();
+/**
+ * 保留当前路径、查询和 hash，强制重新进入守卫以重试失败的资源加载。
+ *
+ * @returns 路由导航的 Promise；完成时为 undefined 或 Vue Router 的导航失败对象。
+ */
 const retry = () =>
   router.replace({ path: route.path, query: route.query, hash: route.hash, force: true });
+/**
+ * 大屏或模板仍有未保存修改时，触发浏览器原生离开保护。
+ *
+ * @param event - 刷新、关闭标签页或离开文档时触发的事件。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function beforeUnload(event: BeforeUnloadEvent) {
   if (dirty.value || draftDirty.value) event.preventDefault();
 }

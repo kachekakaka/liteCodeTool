@@ -6,6 +6,11 @@ import { useCanvasViewport } from '../composables/useCanvasViewport.ts';
 import { useCanvasDrag } from '../composables/useCanvasDrag.ts';
 const props = defineProps<{ mode: 'editor' | 'viewer' | 'workshop' }>();
 const page = {
+  /**
+   * 透传父页面提供的当前画布模式，供模板和画布操作读取。
+   *
+   * @returns editor、viewer 或 workshop 模式值。
+   */
   get mode() {
     return props.mode;
   },
@@ -19,6 +24,12 @@ const logical = computed(() =>
 const { viewport, scale } = useCanvasViewport(logical, () => props.mode);
 const { drag, drop } = useCanvasDrag(logical, scale, () => props.mode);
 watch(scale, (value) => emit('scale', value), { immediate: true });
+/**
+ * 按 ID 查找画布实例引用的模板。
+ *
+ * @param id - 实例引用的模板 ID；调用方依赖已校验的模板引用。
+ * @returns 匹配模板；非空断言仅影响类型，缺失引用在运行时仍可能返回 undefined。
+ */
 const templateOf = (id: string) => templateState.templates.find((t) => t.id === id)!;
 const previewInstance = computed<ComponentInstance>(() => ({
   instanceId: 'workshop_preview',

@@ -40,20 +40,56 @@ const ingestionToken = process.env.INGEST_TOKEN || '';
 const sessionId = randomUUID();
 const queues = new Map();
 class HttpError extends Error {
+  /**
+   * 构造带 HTTP 状态码的业务错误，交给统一请求错误处理器返回。
+   *
+   * @param status - 应返回的 HTTP 状态码。
+   * @param message - 面向客户端的错误原因。
+   * @returns 新的 HttpError 实例。
+   */
   constructor(status, message) {
     super(message);
     this.status = status;
   }
 }
+/**
+ * 对配置文件原文计算强 ETag，用于并发版本校验。
+ *
+ * @param text - 配置文件的 UTF-8 文本原文。
+ * @returns 带双引号的 SHA256 十六进制字符串，可直接用于 ETag 或 If-Match。
+ */
 const etag = (text) => `"${createHash('sha256').update(text).digest('hex')}"`;
+/**
+ * 根据受控分组和资源 ID 定位外部数据目录中的 JSON 文件。
+ *
+ * @param group - 由服务端内部指定的分组，例如 schemas、templates、screens 或 entities；不可直接使用任意用户路径。
+ * @param id - 资源 ID，必须通过 validId 校验。
+ * @returns 位于数据目录对应分组下的 JSON 文件路径。
+ * @throws ID 不合法时抛出状态码 400 的 HttpError。
+ */
 const file = (group, id) => {
   if (!validId(id)) throw new HttpError(400, '标识只允许字母、数字、下划线和连字符');
   return path.join(dataDir, group, `${id}.json`);
 };
+/**
+ * 读取 JSON 文件并基于其原文计算版本，不改写文件。
+ *
+ * @param pathname - 待读取文件的路径，由受控数据目录生成。
+ * @returns 兑现为 data 配置对象和 revision ETag 的 Promise。
+ * @throws 文件读取或 JSON 解析失败时拒绝 Promise。
+ */
 async function read(pathname) {
   const text = await readFile(pathname, 'utf8');
   return { data: JSON.parse(text), revision: etag(text) };
 }
+/**
+ * 先写入同目录唯一临时文件再重命名替换目标，结束时清理残留临时文件。
+ *
+ * @param pathname - 最终 JSON 文件路径；父目录须已存在。
+ * @param value - 可序列化为 JSON 的配置值。
+ * @returns 完成处理的 Promise，不携带业务返回值。
+ * @throws 序列化、写入或重命名失败时拒绝 Promise。
+ */
 async function atomic(pathname, value) {
   const temp = `${pathname}.${randomUUID()}.tmp`;
   try {
@@ -63,6 +99,15 @@ async function atomic(pathname, value) {
     await unlink(temp).catch(() => {});
   }
 }
+/**
+ * 按文件串行执行并发版本校验与原子写入，避免同一资源的并行保存互相覆盖。
+ *
+ * @param pathname - 需要保存的配置文件路径。
+ * @param value - 待保存的 JSON 配置。
+ * @param match - 现有版本 ETag；星号表示仅允许创建不存在的文件，缺失版本会拒绝覆盖。
+ * @returns 兑现为保存后的 data 和 revision 的 Promise。
+ * @throws 版本不匹配或目标已存在时返回 412，缺少覆盖前提时返回 428；文件错误继续向上传递。
+ */
 async function save(pathname, value, match) {
   const previous = queues.get(pathname) || Promise.resolve();
   const task = previous
@@ -89,6 +134,14 @@ async function save(pathname, value, match) {
     if (queues.get(pathname) === task) queues.delete(pathname);
   }
 }
+/**
+ * 仅在资源文件不存在时写入默认配置，保留已有用户修改。
+ *
+ * @param group - 默认资源所属数据分组。
+ * @param id - 默认资源 ID。
+ * @param value - 首次创建时使用的 JSON 配置。
+ * @returns 完成处理的 Promise，不携带业务返回值。
+ */
 async function seed(group, id, value) {
   const pathname = file(group, id);
   try {
@@ -146,6 +199,11 @@ await seed('entities', 'snapshot', demo ? demoEnvelopes() : []);
 const schemas = (await read(file('schemas', 'default'))).data;
 const store = new EntityStore();
 for (const envelope of (await read(file('entities', 'snapshot'))).data) store.apply(envelope, true);
+/**
+ * 将内存实体池转换为可持久化或供启动接口使用的底账列表，保留逐字段源时间。
+ *
+ * @returns 快照数据包数组；全局记录省略 id，不包含历史点集。
+ */
 const snapshots = () =>
   Object.entries(store.records).flatMap(([type, records]) =>
     Object.entries(records).map(([id, r]) => ({
@@ -156,6 +214,12 @@ const snapshots = () =>
       fieldTimestamps: r.timestamps,
     })),
   );
+/**
+ * 按文件名顺序读取指定分组的合法 JSON 资源。
+ *
+ * @param group - 服务端受控数据分组目录名。
+ * @returns 兑现为 data、revision 记录数组的 Promise。
+ */
 async function list(group) {
   return Promise.all(
     (await readdir(path.join(dataDir, group)))
@@ -164,7 +228,21 @@ async function list(group) {
       .map((n) => read(path.join(dataDir, group, n))),
   );
 }
+/**
+ * 读取模板分组并提取模板数据，供引用校验和导入使用。
+ *
+ * @returns 兑现为模板配置数组的 Promise。
+ */
 const allTemplates = async () => (await list('templates')).map((r) => r.data);
+/**
+ * 发送不缓存的 JSON 响应，按需附带资源版本。
+ *
+ * @param res - Node HTTP 响应对象。
+ * @param status - HTTP 响应状态码。
+ * @param value - 可序列化的响应数据。
+ * @param revision - 可选 ETag；为空或省略时不写版本响应头。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function send(res, status, value, revision) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
@@ -174,6 +252,12 @@ function send(res, status, value, revision) {
   });
   res.end(JSON.stringify(value));
 }
+/**
+ * 校验 Host 白名单以及写请求来源，允许同源和明确配置的 Vite 开发来源。
+ *
+ * @param req - 包含 Host 和可选 Origin 头的 HTTP 请求。
+ * @returns Host 合法且来源符合规则时为 true；无 Origin 的请求仍需满足 Host 白名单。
+ */
 function allowedOrigin(req) {
   const allowedHosts = (process.env.ALLOWED_HOSTS || '127.0.0.1,localhost')
     .split(',')
@@ -191,6 +275,13 @@ function allowedOrigin(req) {
     return false;
   }
 }
+/**
+ * 读取最多 2 MB 的 JSON 请求体，并检查配置中的保留键及嵌套深度。
+ *
+ * @param req - 可异步遍历请求体、且 Content-Type 为 application/json 的 HTTP 请求。
+ * @returns 兑现为解析后的 JSON 值的 Promise。
+ * @throws 类型不符为 415、体积超限为 413、JSON 或结构不合法为 400。
+ */
 async function body(req) {
   if (!req.headers['content-type']?.startsWith('application/json'))
     throw new HttpError(415, '请求必须是 JSON');
@@ -209,6 +300,13 @@ async function body(req) {
     throw new HttpError(400, 'JSON 格式不正确或含有不允许的字段');
   }
 }
+/**
+ * 校验接入数据的数据模式、实体身份、字段类型和源时间，并剥离客户端快照元数据。
+ *
+ * @param e - 待校验的外部增量包；时间不得晚于当前时间超过一分钟。
+ * @returns 仅含 type、可选 id、timestamp 和 data 的标准增量包。
+ * @throws 无效模式、ID、字段值或时间戳时抛出状态码 400 的 HttpError。
+ */
 function validateEnvelope(e) {
   const schema = schemas.find((s) => s.type === e?.type);
   if (
@@ -240,6 +338,11 @@ let lastUpdate = null,
   dirtyEntities = false,
   simulationPaused = false;
 let persistTask = Promise.resolve();
+/**
+ * 将脏实体池快照排队落盘；写入失败时恢复脏标记供后续重试。
+ *
+ * @returns 等待本次或已有持久化任务的 Promise；本次落盘失败会记录日志并保留重试状态。
+ */
 async function persistEntities() {
   if (!dirtyEntities) return persistTask;
   dirtyEntities = false;
@@ -255,6 +358,12 @@ async function persistEntities() {
   }
 }
 const sockets = new WebSocketServer({ noServer: true, maxPayload: 1024 });
+/**
+ * 向所有已连接客户端发送 JSON 消息，缓冲超过 2 MB 的慢连接直接断开。
+ *
+ * @param message - 可序列化的实时协议消息，例如 update、hello 或 demo-state。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function broadcast(message) {
   const payload = JSON.stringify(message);
   for (const client of sockets.clients)
@@ -263,6 +372,12 @@ function broadcast(message) {
       else client.send(payload);
     }
 }
+/**
+ * 合并一份已校验增量包，标记待持久化并广播更新。
+ *
+ * @param envelope - 已通过接入校验或由可信演示逻辑生成的增量包。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function update(envelope) {
   store.apply(envelope);
   dirtyEntities = true;
@@ -583,6 +698,11 @@ server.on('error', (e) => {
   process.exit(1);
 });
 let stopping = false;
+/**
+ * 停止服务计时器，保存实体快照并关闭连接；最长约 1.5 秒后结束进程。
+ *
+ * @returns 快照处理与关闭调度完成的 Promise；进程退出由 server.close 回调或超时触发。
+ */
 async function stop() {
   if (stopping) return;
   stopping = true;

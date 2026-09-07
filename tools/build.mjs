@@ -1,4 +1,7 @@
-/** 标准 Vite 构建与发布装配；所有产物写入仓库外部。 */
+/**
+ * 标准构建入口：检查 Vue/TypeScript，构建前端，编译服务端共享核心，再装配发布目录。
+ * 使用当前 Node 进程执行本地依赖；产物统一写入仓库同级 liteCodeTool_tmp。
+ */
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,6 +11,7 @@ import ts from 'typescript';
 import { build } from 'vite';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const out = path.resolve(root, '../liteCodeTool_tmp/release/app');
+// 类型检查失败即结束，不继续生成可能无法使用的发布产物。
 const check = spawnSync(
   process.execPath,
   [path.join(root, 'node_modules/vue-tsc/bin/vue-tsc.js'), '--noEmit'],
@@ -23,6 +27,7 @@ await fs.mkdir(out, { recursive: true });
 await fs.cp(path.resolve(root, '../liteCodeTool_tmp/dist'), path.join(out, 'web'), {
   recursive: true,
 });
+// 核心逻辑由标准 TypeScript 编译器输出为服务端可直接加载的 JavaScript，并保留源码映射。
 const options = {
   target: ts.ScriptTarget.ES2022,
   module: ts.ModuleKind.NodeNext,
@@ -42,12 +47,26 @@ const diagnostics = [...ts.getPreEmitDiagnostics(program), ...result.diagnostics
 if (diagnostics.length)
   throw new Error(
     ts.formatDiagnosticsWithColorAndContext(diagnostics, {
+      /**
+       * 向诊断格式化器提供原始文件名，不改变路径大小写。
+       * @param f - TypeScript 提供的文件名。
+       * @returns 原文件名字符串。
+       */
       getCanonicalFileName: (f) => f,
+      /**
+       * 提供诊断消息解析相对路径的基准目录。
+       * @returns 项目根目录绝对路径。
+       */
       getCurrentDirectory: () => root,
+      /**
+       * 统一诊断消息换行符，避免平台差异影响输出。
+       * @returns LF 换行字符。
+       */
       getNewLine: () => '\n',
     }),
   );
 await fs.mkdir(path.join(out, 'server'), { recursive: true });
+// 发布端引用已编译核心；开发端保留对 TypeScript 源码的引用，便于断点调试。
 let server = await fs.readFile(path.join(root, 'server/index.mjs'), 'utf8');
 server = server.replace("'../src/engine/core.ts'", "'../engine/core.js'");
 await fs.writeFile(path.join(out, 'server/index.mjs'), server);

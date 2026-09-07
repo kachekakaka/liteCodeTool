@@ -12,6 +12,12 @@ import { notify } from '../../stores/application.ts';
 import { useEditing } from '../../composables/useEditing.ts';
 const { selectedTemplate, displayControl, select, createSlot, renameSlot, patchControl } =
   useEditing();
+/**
+ * 读取检查器表单控件的字符串值，数值转换由调用方按字段语义处理。
+ *
+ * @param e - 来自 input 或 select 的表单事件。
+ * @returns 事件目标的 value 字符串。
+ */
 const v = (e: Event) => (e.target as HTMLInputElement).value;
 const isLineGlobal = computed(
   () =>
@@ -22,13 +28,32 @@ const isLineGlobal = computed(
         (s) => s.type === displayControl.value?.props.xAxisSchemaType && !s.isEntity,
       )),
 );
+/**
+ * 通过统一编辑入口合并当前控件属性，自动区分模板草稿与实例覆盖。
+ *
+ * @param patch - 待修改的控件属性子集；未提供的属性保留原值。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function props(patch: Partial<ControlProps>) {
   patchControl({ props: patch });
 }
+/**
+ * 切换控件静态或动态数据模式；首次转为动态且无绑定时尝试绑定默认槽位。
+ *
+ * @param mode - static 表示固定值，dynamic 表示从字段取值。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function mode(mode: 'static' | 'dynamic') {
   props({ sourceMode: mode });
   if (mode === 'dynamic' && !displayControl.value?.binding) bindTarget('slot');
 }
+/**
+ * 切换全局或对象槽位绑定，选取适配字段并重置自动标签、单位和精度。
+ *
+ * @param target - slot 使用模板对象槽位，global 使用非实体数据模式。
+ * @param key - 槽位 ID 或全局 schemaType；默认空字符串时使用首个合适选项。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function bindTarget(target: 'slot' | 'global', key = '') {
   const t = selectedTemplate.value;
   if (!t) return;
@@ -54,6 +79,13 @@ function bindTarget(target: 'slot' | 'global', key = '') {
     props: { sourceMode: 'dynamic', labelMode: 'auto', unitMode: 'auto', precision: null },
   });
 }
+/**
+ * 将输入转换为有限数值后更新指定控件属性。
+ *
+ * @param key - 数值属性名；lookbackMinutes 用分钟，gapSeconds、staleSeconds、autoPageSeconds 用秒，pageSize 为行数。
+ * @param event - 包含待转换字符串的输入事件。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function numberProp(
   key: 'lookbackMinutes' | 'gapSeconds' | 'pageSize' | 'staleSeconds' | 'autoPageSeconds',
   event: Event,
@@ -76,6 +108,12 @@ const currentLineSchema = computed(() =>
 const currentLineNumericFields = computed(
   () => currentLineSchema.value?.fields.filter((f) => f.type === 'number') ?? [],
 );
+/**
+ * 切换曲线数据模式，修复不兼容字段和槽位；全局模式统一回到时间横轴。
+ *
+ * @param event - 数据模式选择事件，其值为目标 schemaType。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function changeLineSchema(event: Event) {
   const nextType = v(event);
   const targetSchema = dataState.schemas.find((s) => s.type === nextType);
@@ -143,6 +181,12 @@ function changeLineSchema(event: Event) {
     });
   }
 }
+/**
+ * 切换时间横轴与字段横轴，进入字段模式时补充可用的默认 X 字段。
+ *
+ * @param mode - time 表示时间横轴，field 表示数值字段横轴。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function setXAxisMode(mode: 'time' | 'field') {
   props({
     xAxisMode: mode,
@@ -152,6 +196,12 @@ function setXAxisMode(mode: 'time' | 'field') {
         : undefined,
   });
 }
+/**
+ * 更新双轴航迹的 X 轴字段。
+ *
+ * @param event - X 轴数值字段选择事件。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function changeXAxisField(event: Event) {
   props({ xAxisField: v(event) });
 }
@@ -159,6 +209,13 @@ const creatingSlotForSeries = ref<number | null>(null);
 const newSlotDraft = ref('');
 const renamingSlotId = ref<string | null>(null);
 const renameSlotDraft = ref('');
+/**
+ * 处理曲线槽位选择；特殊新建选项进入行内编辑，普通选项直接改绑。
+ *
+ * @param index - 当前曲线下标，从 0 开始。
+ * @param event - 槽位选择事件；__new__ 表示新建槽位。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function onSlotSelectChange(index: number, event: Event) {
   const val = (event.target as HTMLSelectElement).value;
   if (val === '__new__') {
@@ -168,6 +225,12 @@ function onSlotSelectChange(index: number, event: Event) {
     seriesChange(index, 'slotId', event);
   }
 }
+/**
+ * 为当前曲线创建命名槽位并绑定，然后退出新建槽位输入状态。
+ *
+ * @param index - 正在新建槽位的曲线下标，须与当前编辑行一致。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function commitNewSlot(index: number) {
   if (creatingSlotForSeries.value !== index) return;
   const label =
@@ -183,25 +246,54 @@ function commitNewSlot(index: number) {
     }
   }
 }
+/**
+ * 取消行内新建槽位并丢弃尚未提交的名称。
+ *
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function cancelNewSlot() {
   creatingSlotForSeries.value = null;
   newSlotDraft.value = '';
 }
+/**
+ * 进入已有槽位的行内重命名状态并填充原名称。
+ *
+ * @param slotId - 需要重命名的槽位 ID。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function startRenameSlot(slotId: string) {
   renamingSlotId.value = slotId;
   const slot = selectedTemplate.value?.slots.find((s) => s.id === slotId);
   renameSlotDraft.value = slot?.label ?? '';
 }
+/**
+ * 提交当前槽位名称并结束行内重命名。
+ *
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function commitRenameSlot() {
   if (!renamingSlotId.value) return;
   renameSlot(renamingSlotId.value, renameSlotDraft.value);
   renamingSlotId.value = null;
   renameSlotDraft.value = '';
 }
+/**
+ * 取消槽位重命名，清空编辑状态与名称草稿。
+ *
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function cancelRenameSlot() {
   renamingSlotId.value = null;
   renameSlotDraft.value = '';
 }
+/**
+ * 修改指定曲线配置；切换来源类型时整体重建寻址信息并保留颜色。
+ *
+ * @param index - 曲线下标，从 0 开始，应对应已有曲线。
+ * @param key - 待改字段：target、slotId、schemaType、field 或 color。
+ * @param event - 包含新值的表单事件。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function seriesChange(
   index: number,
   key: 'target' | 'slotId' | 'schemaType' | 'field' | 'color',
@@ -236,6 +328,11 @@ function seriesChange(
   }
   props({ series });
 }
+/**
+ * 按当前实体或全局模式增加一条曲线，使用默认数值字段和循环配色，必要时创建槽位。
+ *
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function seriesAdd() {
   const isGlobal = isLineGlobal.value || !currentLineSchema.value?.isEntity;
   if (isGlobal) {
@@ -276,6 +373,12 @@ function seriesAdd() {
     ],
   });
 }
+/**
+ * 删除指定曲线并保留其余曲线顺序。
+ *
+ * @param index - 待删除曲线的下标，从 0 开始。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function seriesRemove(index: number) {
   props({ series: (displayControl.value?.props.series ?? []).filter((_, i) => i !== index) });
 }

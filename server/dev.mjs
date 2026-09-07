@@ -6,6 +6,12 @@ const cwd = fileURLToPath(new URL('..', import.meta.url));
 let vite,
   child,
   stopping = false;
+/**
+ * 停止本次启动的后端子进程并关闭 Vite，避免退出后遗留开发端口。
+ *
+ * @param code - 父进程退出码，默认 0；失败路径传入非零值。
+ * @returns Vite 关闭后的 Promise；通过 process.exitCode 设置退出状态。
+ */
 async function stop(code = 0) {
   if (stopping) return;
   stopping = true;

@@ -46,6 +46,11 @@ for (const name of await fs.readdir(root)) {
 for (const name of ['node', 'vscode', 'pwsh', 'extensions', 'vsix', 'resources.json'])
   await fs.cp(path.join(resources, name), path.join(destination, 'toolchain', name), {
     recursive: true,
+    /**
+     * 排除安装目录中的卸载器及其附属文件，保留开发工具运行资源。
+     * @param file - 当前待复制文件或目录的完整路径。
+     * @returns 名称不以 unins 加数字开头时为 true，表示允许复制。
+     */
     filter: (file) => !/^unins\d/i.test(path.basename(file)),
   });
 await fs.writeFile(

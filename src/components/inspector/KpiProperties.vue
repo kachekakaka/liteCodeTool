@@ -4,11 +4,35 @@ import type { ControlProps } from '../../types.ts';
 import { notify } from '../../stores/application.ts';
 import { useEditing } from '../../composables/useEditing.ts';
 const { selectedTemplate, displayControl, select, patchControl } = useEditing();
+/**
+ * 读取检查器表单控件的字符串值，数值转换由调用方按字段语义处理。
+ *
+ * @param e - 来自 input 或 select 的表单事件。
+ * @returns 事件目标的 value 字符串。
+ */
 const v = (e: Event) => (e.target as HTMLInputElement).value;
+/**
+ * 读取检查器复选框是否选中。
+ *
+ * @param e - 复选框变化事件。
+ * @returns 复选框 checked 布尔值。
+ */
 const checked = (e: Event) => (e.target as HTMLInputElement).checked;
+/**
+ * 通过统一编辑入口合并当前控件属性，自动区分模板草稿与实例覆盖。
+ *
+ * @param patch - 待修改的控件属性子集；未提供的属性保留原值。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function props(patch: Partial<ControlProps>) {
   patchControl({ props: patch });
 }
+/**
+ * 校验并读取 1 MB 以内的图片，作为 KPI 指标卡自定义图标。
+ *
+ * @param event - 图片文件选择事件，读取首个文件。
+ * @returns 启动读取后的 Promise，不等待 FileReader 的 load；读取失败通过提示反馈。
+ */
 async function kpiEmblemUpload(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0];
   if (!file) return;
@@ -23,6 +47,12 @@ async function kpiEmblemUpload(event: Event) {
   reader.onerror = () => notify('图片读取失败', true);
   reader.readAsDataURL(file);
 }
+/**
+ * 切换 KPI 内置图标或自定义图片模式；选择内置图标时清空旧图片地址。
+ *
+ * @param event - 图标选项事件；custom 表示保留或上传自定义图片。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function changeKpiIcon(event: Event) {
   const val = v(event);
   props({

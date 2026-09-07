@@ -13,6 +13,12 @@ const atoms = computed(() => templateState.templates.filter((t) => t.category ==
 const assets = computed(() =>
   templateState.templates.filter((t) => t.category !== '原子控件' && t.name.includes(search.value)),
 );
+/**
+ * 将原子控件类型转换为资产库中的中文名称。
+ *
+ * @param type - 控件类型标识。
+ * @returns 中文名称；未知类型返回原类型字符串。
+ */
 const controlLabel = (type: string) =>
   (
     ({
@@ -25,6 +31,12 @@ const controlLabel = (type: string) =>
       image: '图片',
     }) as Record<string, string>
   )[type] || type;
+/**
+ * 为资产库中的控件类型选择简洁图标字符。
+ *
+ * @param type - 控件类型标识。
+ * @returns 对应图标字符；未知类型返回菱形占位符。
+ */
 const controlIcon = (type: string) =>
   (
     ({
@@ -37,10 +49,22 @@ const controlIcon = (type: string) =>
       image: '▧',
     }) as Record<string, string>
   )[type] || '◇';
+/**
+ * 将模板 ID 写入拖拽载荷，声明为复制操作供画布接收。
+ *
+ * @param event - 资产项的拖拽开始事件。
+ * @param id - 拖入画布的组件模板 ID。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function libraryDrag(event: DragEvent, id: string) {
   event.dataTransfer?.setData('application/litecode-template', id);
   if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
 }
+/**
+ * 移除工坊草稿中选中的控件，并清空控件选中状态。
+ *
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function removeControl() {
   if (!templateState.draft) return;
   templateState.draft.controls = templateState.draft.controls.filter(

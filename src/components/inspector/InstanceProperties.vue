@@ -15,7 +15,20 @@ import { useEditing } from '../../composables/useEditing.ts';
 const page = usePageMode();
 const { selectedTemplate, displayControl, select, patchControl } = useEditing();
 const geometryKeys: (keyof Geometry)[] = ['x', 'y', 'w', 'h'];
+/**
+ * 读取检查器表单控件的字符串值，数值转换由调用方按字段语义处理。
+ *
+ * @param e - 来自 input 或 select 的表单事件。
+ * @returns 事件目标的 value 字符串。
+ */
 const v = (e: Event) => (e.target as HTMLInputElement).value;
+/**
+ * 更新选中控件或实例的位置尺寸，并将结果约束到对应画布边界。
+ *
+ * @param key - 位置尺寸字段 x、y、w 或 h，均为逻辑像素。
+ * @param event - 数值输入事件；非有限数值不应用。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function position(key: keyof Geometry, event: Event) {
   const n = Number(v(event));
   if (!Number.isFinite(n)) return;
@@ -39,13 +52,32 @@ function position(key: keyof Geometry, event: Event) {
     );
   }
 }
+/**
+ * 更新选中实例层级，将输入限制到 0～999。
+ *
+ * @param event - 层级数值输入事件；无效或 0 输入按现有逻辑回退为 1。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function layer(event: Event) {
   if (selectedInstance.value) {
     checkpoint();
     selectedInstance.value.position.zIndex = Math.max(0, Math.min(999, Number(v(event)) || 1));
   }
 }
+/**
+ * 读取对象槽位可选的实体列表。
+ *
+ * @param type - 槽位的数据模式标识。
+ * @returns 包含 id 和实体记录引用的数组。
+ */
 const targets = (type: string) => dataState.store.list(type);
+/**
+ * 将当前选中实例的槽位改绑为表单选中的对象。
+ *
+ * @param slot - 模板对象槽位 ID。
+ * @param event - 实体选择事件，空值表示解除指派。
+ * @returns 存在选中实例时返回改绑 Promise，否则返回 undefined。
+ */
 const assign = (slot: string, event: Event) =>
   selectedInstance.value && retarget(selectedInstance.value.instanceId, slot, v(event));
 </script>

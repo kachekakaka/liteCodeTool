@@ -7,6 +7,7 @@ import { dataState } from './entities.ts';
 import { uid } from '../utils/identity.ts';
 import { notify } from './application.ts';
 import { request } from '../services/http.ts';
+/** 当前大屏内存草稿、服务器保存基线及最多 50 步撤销记录；切换功能页时共享此状态。 */
 export const screenState = reactive({
   screen: null as ScreenConfig | null,
   screens: [] as { id: string; name: string }[],
@@ -19,38 +20,72 @@ export const screenState = reactive({
   undo: [] as string[],
   redo: [] as string[],
 });
+/** 通过与最近成功保存的 JSON 快照比较判断未保存修改，实时数据变化不参与比较。 */
 export const dirty = computed(
   () => !!screenState.screen && JSON.stringify(screenState.screen) !== screenState.savedScreen,
 );
 export const selectedInstance = computed(() =>
   screenState.screen?.components.find((i) => i.instanceId === screenState.selectedInstance),
 );
+/**
+ * 记录修改前的大屏快照，最多保留 50 步，并清空重做栈。
+ *
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 export function checkpoint(): void {
   if (!screenState.screen) return;
   screenState.undo.push(JSON.stringify(screenState.screen));
   if (screenState.undo.length > 50) screenState.undo.shift();
   screenState.redo = [];
 }
+/**
+ * 恢复上一份大屏快照，并将当前状态放入重做栈；无可撤销步骤时不处理。
+ *
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 export function undo(): void {
   if (!screenState.screen || !screenState.undo.length) return;
   screenState.redo.push(JSON.stringify(screenState.screen));
   screenState.screen = JSON.parse(screenState.undo.pop()!);
   clearSelection();
 }
+/**
+ * 恢复一份重做快照，并将当前状态放回撤销栈。
+ *
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 export function redo(): void {
   if (!screenState.screen || !screenState.redo.length) return;
   screenState.undo.push(JSON.stringify(screenState.screen));
   screenState.screen = JSON.parse(screenState.redo.pop()!);
   clearSelection();
 }
+/**
+ * 清空实例及控件选中状态。
+ *
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 export function clearSelection(): void {
   screenState.selectedInstance = '';
   screenState.selectedControl = '';
 }
+/**
+ * 选中指定实例，同时清除之前选中的控件。
+ *
+ * @param instanceId - 目标组件实例标识。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 function select(instanceId: string) {
   screenState.selectedInstance = instanceId;
   screenState.selectedControl = '';
 }
+/**
+ * 应用服务器大屏及其版本，重置保存基线、撤销栈和选中状态。
+ *
+ * @param data - 服务器返回的大屏配置，将直接作为当前草稿。
+ * @param revision - 服务器 ETag，用于下一次保存的并发版本校验。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 export function applyScreen(data: ScreenConfig, revision: string): void {
   screenState.screen = data;
   screenState.savedScreen = JSON.stringify(data);
@@ -62,10 +97,22 @@ export function applyScreen(data: ScreenConfig, revision: string): void {
     localStorage.setItem('litecode.screen.' + dataState.sourceMode, data.id);
   } catch {}
 }
+/**
+ * 请求指定大屏并应用为当前草稿；调用方负责离开确认和导航保护。
+ *
+ * @param id - 需要加载的大屏标识。
+ * @returns 完成处理的 Promise，不携带业务返回值。
+ * @throws 请求、解析或取消失败时 Promise 拒绝。
+ */
 export async function loadScreen(id: string): Promise<void> {
   const result = await request<ScreenConfig>(`/api/screens/${encodeURIComponent(id)}`);
   applyScreen(result.data, result.revision);
 }
+/**
+ * 校验并保存当前大屏快照，使用 ETag 防止覆盖其他窗口的更新。保存期间的新修改仍保持未保存状态。
+ *
+ * @returns 保存流程结束的 Promise；失败以界面通知反馈，无业务返回值。
+ */
 export async function saveScreen(): Promise<void> {
   if (!screenState.screen || screenState.saving) return;
   const submitted = clone(screenState.screen);
@@ -90,6 +137,11 @@ export async function saveScreen(): Promise<void> {
     screenState.saving = false;
   }
 }
+/**
+ * 确认放弃旧草稿后输入名称，创建空白大屏并应用服务器返回值。
+ *
+ * @returns 成功时兑现为新大屏 ID；用户取消、名称为空或保存失败时为 undefined。
+ */
 export async function newScreen(): Promise<string | undefined> {
   if (dirty.value && !confirm('新建前将离开当前大屏，未保存修改不会保留。是否继续？')) return;
   const name = prompt('输入新大屏名称', '新建监控大屏');
@@ -114,6 +166,11 @@ export async function newScreen(): Promise<string | undefined> {
     notify((e as Error).message, true);
   }
 }
+/**
+ * 下载当前大屏及其引用模板组成的 JSON 配置包，不要求先保存。
+ *
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 export function exportScreen(): void {
   if (!screenState.screen) return;
   const url = URL.createObjectURL(
@@ -140,6 +197,12 @@ export function exportScreen(): void {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+/**
+ * 读取不超过 2 MB 的配置包，经确认后导入为独立资源副本。
+ *
+ * @param event - 文件选择事件，从目标 input 的 files[0] 读取配置。
+ * @returns 成功时兑现为导入大屏 ID；取消、未选文件、正在导入或失败时为 undefined。
+ */
 export async function importConfiguration(event: Event): Promise<string | undefined> {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
@@ -174,6 +237,12 @@ export async function importConfiguration(event: Event): Promise<string | undefi
     uiState.importing = false;
   }
 }
+/**
+ * 将选中实例置顶或置底，并重新生成连续层级。
+ *
+ * @param where - front 表示置顶，back 表示置底。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 export function moveLayer(where: 'front' | 'back'): void {
   if (!selectedInstance.value || !screenState.screen) return;
   checkpoint();
@@ -187,6 +256,12 @@ export function moveLayer(where: 'front' | 'back'): void {
     i.position.zIndex = n + 1;
   });
 }
+/**
+ * 将选中实例与大屏边界或中心对齐，并记录撤销快照。
+ *
+ * @param direction - left/center/right 表示水平对齐，top/middle/bottom 表示垂直对齐。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 export function alignInstance(
   direction: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom',
 ): void {
@@ -201,6 +276,14 @@ export function alignInstance(
   if (direction === 'middle') p.y = (r.height - p.h) / 2;
   if (direction === 'bottom') p.y = r.height - p.h;
 }
+/**
+ * 在当前大屏实例化指定模板，按 8 像素网格定位并限制到画布内。
+ *
+ * @param templateId - 资产库中的模板标识；不存在时不创建。
+ * @param x - 实例左侧逻辑坐标，默认 80 像素。
+ * @param y - 实例顶部逻辑坐标，默认 320 像素。
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 export function addTemplate(templateId: string, x = 80, y = 320): void {
   if (!screenState.screen) return;
   const t = templateState.templates.find((t) => t.id === templateId);
@@ -224,6 +307,11 @@ export function addTemplate(templateId: string, x = 80, y = 320): void {
   screenState.screen.components.push(instance);
   select(instance.instanceId);
 }
+/**
+ * 删除选中实例并清空选中状态，同时保留可撤销快照。
+ *
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 export function removeInstance(): void {
   if (!screenState.screen || !selectedInstance.value) return;
   checkpoint();
@@ -232,6 +320,11 @@ export function removeInstance(): void {
   );
   clearSelection();
 }
+/**
+ * 复制选中实例，分配新标识并向右下偏移 24 逻辑像素后约束到画布内。
+ *
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 export function duplicateInstance(): void {
   if (!selectedInstance.value || !screenState.screen) return;
   checkpoint();
@@ -248,6 +341,14 @@ export function duplicateInstance(): void {
   screenState.screen.components.push(i);
   select(i.instanceId);
 }
+/**
+ * 替换实例的对象槽位指派，再获取新对象底账；底账失败时保留指派并显示缺失值。
+ *
+ * @param instanceId - 需要改绑的组件实例标识。
+ * @param slot - 模板内对象槽位标识。
+ * @param id - 目标实体标识；空字符串表示解除指派，不请求底账。
+ * @returns 完成处理的 Promise，不携带业务返回值。
+ */
 export async function retarget(instanceId: string, slot: string, id: string): Promise<void> {
   const instance = screenState.screen?.components.find((i) => i.instanceId === instanceId);
   const template = templateState.templates.find((t) => t.id === instance?.templateId);
@@ -266,6 +367,11 @@ export async function retarget(instanceId: string, slot: string, id: string): Pr
     notify(`目标已切换；底账读取失败，缺失字段显示 --：${(e as Error).message}`, true);
   }
 }
+/**
+ * 将各实例对象指派恢复到最近保存值，保留当前布局及控件修改。
+ *
+ * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
+ */
 export function restoreBindings(): void {
   if (!screenState.screen || !screenState.savedScreen) return;
   checkpoint();
