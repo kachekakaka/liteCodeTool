@@ -1,0 +1,12 @@
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "prettier.requireConfig": true,
+  "prettier.prettierPath": "./node_modules/prettier",
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "files.eol": "\n",
+  "files.exclude": { "**/node_modules": true },
+  "search.exclude": { "**/node_modules": true, "vendor": true },
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "terminal.integrated.profiles.windows": { "PowerShell": { "path": "pwsh" } }
+}

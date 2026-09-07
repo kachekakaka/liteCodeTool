@@ -7,24 +7,30 @@
     "node": ">=22.16.0"
   },
   "scripts": {
-    "start": "node --experimental-strip-types -e \"process.env.CLIENT_DIR='../liteCodeTool_tmp/release/app/web'; import('./server/index.mjs')\"",
-    "start:demo": "node --experimental-strip-types -e \"process.env.CLIENT_DIR='../liteCodeTool_tmp/release/app/web'; process.argv.push('--demo'); import('./server/index.mjs')\"",
-    "start:vite": "node --experimental-strip-types -e \"process.env.CLIENT_DIR='../liteCodeTool_tmp/dist'; import('./server/index.mjs')\"",
-    "start:vite:demo": "node --experimental-strip-types -e \"process.env.CLIENT_DIR='../liteCodeTool_tmp/dist'; process.argv.push('--demo'); import('./server/index.mjs')\"",
+    "start": "node tools/start.mjs",
+    "start:demo": "node tools/start.mjs --demo",
+    "start:vite": "npm run start",
+    "start:vite:demo": "npm run start:demo",
     "dev": "node --experimental-strip-types server/dev.mjs",
     "dev:demo": "node --experimental-strip-types server/dev.mjs --demo",
     "typecheck": "vue-tsc --noEmit",
-    "build:vite": "vue-tsc --noEmit && vite build",
+    "build:vite": "npm run build",
     "build": "node tools/build.mjs",
-    "test": "node --experimental-strip-types --test tests/core.test.ts"
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "dev:live": "npm run dev",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "package:offline": "node tools/package-offline.mjs"
   },
   "dependencies": {
     "vue": "^3.5.13",
+    "vue-router": "4.6.4",
     "ws": "^8.18.3"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",
     "@vitejs/plugin-vue": "^5.2.4",
+    "prettier": "3.9.6",
     "typescript": "~5.8.3",
     "vite": "^6.3.5",
     "vue-tsc": "^2.2.10"

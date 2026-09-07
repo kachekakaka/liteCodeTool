@@ -1,0 +1,8 @@
+node_modules/
+vendor/
+archive/
+package-lock.json
+AGENTS.md
+docs/方案/
+docs/adr/
+*.md

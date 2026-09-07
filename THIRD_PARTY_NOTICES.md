@@ -1,14 +1,15 @@
 # 第三方资源与许可
 
-本软件不包含系统字体。页面使用用户机器上已安装的中文及无衬线字体。
+项目使用本机字体，不打包系统字体。当前前端由 Vite 统一构建，实际依赖版本以 `package-lock.json` 为准。
 
-| 资源 | 固定版本 | 许可 | 使用范围 |
-| --- | --- | --- | --- |
-| Vue | 3.5.13 | MIT；`vendor/vue/LICENSE` | 本地浏览器运行与发布模板编译 |
-| TypeScript | 5.8.3 | Apache-2.0；`vendor/typescript/LICENSE.txt` | 仅源码离线发布编译，不进入运行服务依赖 |
-| he | 1.2.0 | MIT；`vendor/he.LICENSE` | 构建期HTML实体解码 |
-| ws | 8.17.1 | MIT；`vendor/ws.LICENSE` | Node WebSocket服务 |
+| 资源 | 许可位置 | 使用范围 |
+| --- | --- | --- |
+| Vue、Vue Router | 各自 `node_modules` 包内 LICENSE（MIT） | 前端渲染与路由 |
+| Vite | `node_modules/vite/LICENSE`（MIT） | 开发和生产构建 |
+| TypeScript | `node_modules/typescript/LICENSE.txt`（Apache-2.0） | 类型检查与服务端共享核心编译 |
+| Prettier | `node_modules/prettier/LICENSE`（MIT） | 源码格式化 |
+| ws 内置资源 | `vendor/ws.LICENSE`（MIT） | Node WebSocket 服务，不依赖可选原生扩展 |
 
-资源取自本构建环境现有安装：Vue来自trame_client的Vue分发资源，TypeScript与he来自已安装JS工具依赖，ws从Playwright所分发依赖中提取其WebSocket模块闭包。保留原有许可与版权，不打包浏览器自动化工具本身。ws使用JavaScript回退实现，不携带可选原生扩展。
+旧 `vendor/vue`、`vendor/typescript` 与 `vendor/he.*` 已随旧构建链移除。仍在使用的 ws 内置文件及其许可保留，来源延续原项目分发资源。
 
-`package.json`保留常规在线开发所需版本范围；实际发行包使用以上固定文件。离线构建可重复使用这些文件，不声称完成了最新漏洞数据库审计。代码与资源校验值见发行包SHA256SUMS.txt。
+完整离线开发包保留 Node、VS Code、PowerShell 和扩展自身随附的许可。安装和使用须遵守各自发行许可；这些工具不属于本项目自有代码。离线包的 `manifest.json` 记录工具链与扩展版本、资源来源和校验信息。

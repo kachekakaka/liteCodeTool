@@ -1,10 +1,66 @@
+/** 开发协调进程；服务就绪后再通知编辑器打开浏览器。 */
 import { spawn } from 'node:child_process';
 import { createServer } from 'vite';
 import { fileURLToPath } from 'node:url';
 const cwd = fileURLToPath(new URL('..', import.meta.url));
-const child = spawn(process.execPath, ['--experimental-strip-types', 'server/index.mjs', ...(process.argv.includes('--demo') ? ['--demo'] : [])], { cwd, stdio: 'inherit' });
-let vite, stopping = false;
-async function stop(code = 0) { if (stopping) return; stopping = true; child.kill('SIGTERM'); await vite?.close(); process.exit(code); }
-process.on('SIGINT', () => stop()); process.on('SIGTERM', () => stop());
-child.on('exit', code => { if (!stopping) stop(code || 0); });
-try { vite = await createServer({ root: cwd }); await vite.listen(); vite.printUrls(); } catch (e) { console.error('开发服务启动失败：', e.message); await stop(1); }
+let vite,
+  child,
+  stopping = false;
+async function stop(code = 0) {
+  if (stopping) return;
+  stopping = true;
+  if (child && child.exitCode === null) child.kill('SIGTERM');
+  await vite?.close();
+  process.exitCode = code;
+}
+process.on('SIGINT', () => void stop());
+process.on('SIGTERM', () => void stop());
+try {
+  vite = await createServer({ root: cwd });
+  await vite.listen();
+  child = spawn(
+    process.execPath,
+    [
+      '--experimental-strip-types',
+      'server/index.mjs',
+      ...(process.argv.includes('--demo') ? ['--demo'] : []),
+    ],
+    {
+      cwd,
+      stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
+      windowsHide: true,
+      env: { ...process.env, DEV_ORIGIN: `http://127.0.0.1:${vite.config.server.port}` },
+    },
+  );
+  child.on('error', (error) => {
+    console.error(error.message);
+    void stop(1);
+  });
+  child.on('exit', (code) => {
+    if (!stopping) void stop(code || 0);
+  });
+  // 只认可本次子进程的就绪消息，不能把占用端口的旧服务误当成本次服务。
+  const ready = await new Promise((resolve) => {
+    const timeout = setTimeout(() => resolve(false), 10000);
+    child.once('message', (message) => {
+      clearTimeout(timeout);
+      resolve(message?.kind === 'ready');
+    });
+    child.once('exit', () => {
+      clearTimeout(timeout);
+      resolve(false);
+    });
+    child.once('error', () => {
+      clearTimeout(timeout);
+      resolve(false);
+    });
+  });
+  if (!ready && !stopping) throw new Error('后端启动超时，请检查端口和数据目录');
+  if (ready && !stopping) {
+    vite.printUrls();
+    console.log(`前后端已就绪：http://127.0.0.1:${vite.config.server.port}`);
+  }
+} catch (error) {
+  console.error('开发服务启动失败：', error.message);
+  await stop(1);
+}

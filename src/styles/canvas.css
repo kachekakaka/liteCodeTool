@@ -1,0 +1,244 @@
+.canvas-area {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: #020915;
+}
+.canvas-viewport {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  display: flex;
+  padding: 32px;
+  background-image: radial-gradient(#16364b70 0.75px, transparent 0.75px);
+  background-size: 18px 18px;
+}
+.screen-canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: top left;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 48% -20%, #0c426075, transparent 60%),
+    linear-gradient(180deg, #031023, #030b17);
+  font-size: 18px;
+  isolation: isolate;
+}
+.screen-canvas:before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(#20729e08 1px, transparent 1px),
+    linear-gradient(90deg, #20729e08 1px, transparent 1px);
+  background-size: 80px 80px;
+  pointer-events: none;
+}
+.canvas-bottom {
+  height: 34px;
+  flex: none;
+  background: #061423;
+  border-top: 1px solid #173750;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 14px;
+  color: #698eac;
+  font-size: 10px;
+  gap: 12px;
+}
+.canvas-bottom i {
+  font-style: normal;
+  margin: 0 10px;
+  color: #395b77;
+}
+.canvas-bottom > span:last-child {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.workshop-canvas {
+  overflow: visible;
+}
+.workshop-canvas:before {
+  display: none;
+}
+.empty-canvas {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #517c9b;
+  gap: 20px;
+}
+.empty-canvas > span {
+  font-size: 80px;
+  line-height: 100px;
+  border: 1px dashed #1d5b80;
+  border-radius: 12px;
+  width: 120px;
+  text-align: center;
+  color: #42a7d2;
+}
+.empty-canvas h2 {
+  font-weight: 500;
+  font-size: 28px;
+}
+.empty-canvas p {
+  font-size: 18px;
+}
+.instance-card {
+  position: absolute;
+}
+.instance-card.selected {
+  outline: 2px solid #34bbff;
+  outline-offset: 3px;
+}
+.control-position {
+  position: absolute;
+  line-height: 1.25;
+  min-width: 0;
+}
+.control-position:hover {
+  outline: 1px solid #22769866;
+}
+.mode-viewer .control-position:hover {
+  outline: none;
+}
+.control-selected {
+  outline: 1px solid #57d6ff !important;
+  box-shadow: 0 0 0 3px #38bcff12;
+}
+.control-resize,
+.card-resize {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  width: 14px;
+  height: 14px;
+  background: linear-gradient(135deg, #d2f3ff, #22d3ee);
+  border: 2px solid #0c759e;
+  border-radius: 2px;
+  cursor: nwse-resize;
+  z-index: 20;
+  box-shadow: 0 0 6px #22d3ee77;
+  transition:
+    transform 0.15s,
+    background 0.15s,
+    box-shadow 0.15s;
+}
+.control-resize::before,
+.card-resize::before {
+  content: '';
+  position: absolute;
+  inset: -14px;
+  cursor: nwse-resize;
+  pointer-events: auto;
+  z-index: 25;
+}
+.card-resize {
+  right: -8px;
+  bottom: -8px;
+  width: 15px;
+  height: 15px;
+}
+.control-resize:hover,
+.card-resize:hover {
+  background: #4de8ff;
+  border-color: #fff;
+  box-shadow:
+    0 0 12px #22d3ee,
+    0 0 4px #fff;
+  transform: scale(1.18);
+}
+.instance-card:hover > .card-grip,
+.instance-card.selected > .card-grip {
+  opacity: 1;
+}
+.dragging {
+  user-select: none;
+  cursor: grabbing;
+}
+.view-retarget {
+  position: absolute;
+  right: 10px;
+  top: 9px;
+  z-index: 10;
+  width: 32px;
+  height: 26px;
+  color: #87ccec;
+  border: 1px solid #2b6084;
+  border-radius: 3px;
+  background: #0b2c46;
+  opacity: 0;
+}
+.instance-card:hover > .view-retarget,
+.instance-card:focus-within > .view-retarget {
+  opacity: 1;
+}
+.insitu-popover {
+  position: absolute;
+  z-index: 50;
+  right: 12px;
+  top: 42px;
+  width: min(360px, 95%);
+  border: 1px solid #2693bb;
+  background: #071a30fa;
+  box-shadow: 0 10px 35px #000a;
+  padding: 14px;
+  border-radius: 5px;
+  font-size: 15px;
+  color: #a8cde5;
+}
+.insitu-popover header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+}
+.insitu-popover header strong {
+  font-size: 16px;
+}
+.insitu-popover header button {
+  font-size: 22px;
+}
+.insitu-popover label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 9px 0;
+  font-size: 12px;
+}
+.insitu-popover select {
+  width: 100%;
+  font-size: 13px;
+}
+.screen-canvas {
+  background-image:
+    radial-gradient(ellipse at 46% -16%, #124d7a5e, transparent 62%),
+    linear-gradient(90deg, #153d5d12 1px, transparent 1px),
+    linear-gradient(#153d5d12 1px, transparent 1px);
+  background-size:
+    auto,
+    48px 48px,
+    48px 48px;
+}
+.instance-card .card-heading {
+  background: linear-gradient(90deg, #0d3455b8, #0a223770, transparent);
+  border-bottom-color: #1c507469;
+}
+.control-position {
+  container-type: size;
+}
+.insitu-popover.popover-up {
+  top: auto !important;
+  bottom: calc(100% + 8px) !important;
+  box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.75) !important;
+}

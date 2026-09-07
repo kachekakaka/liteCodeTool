@@ -1,0 +1,21 @@
+:root {
+  color-scheme: dark;
+  --root: #030b17;
+  --shell: #071426;
+  --panel: #081b30;
+  --card: #0c2540;
+  --border: #17486b;
+  --cyan: #22d3ee;
+  --blue: #5ea4ff;
+  --ok: #25d8ae;
+  --warning: #ffbf47;
+  --danger: #ff667a;
+  --text: #dbf4ff;
+  --secondary: #a8c1da;
+  --muted: #7191b0;
+  font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: var(--text);
+  background: var(--root);
+  font-synthesis: none;
+  font-weight: 400;
+}

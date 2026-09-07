@@ -1,0 +1,15 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    { "label": "类型检查", "type": "npm", "script": "typecheck", "problemMatcher": "$tsc" },
+    {
+      "label": "构建发布包",
+      "type": "npm",
+      "script": "build",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": "$tsc"
+    },
+    { "label": "检查代码格式", "type": "npm", "script": "format:check", "problemMatcher": [] },
+    { "label": "核心单测", "type": "npm", "script": "test", "group": "test", "problemMatcher": [] }
+  ]
+}

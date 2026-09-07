@@ -1,0 +1,29 @@
+@keyframes radar-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes sonar-expand {
+  0% {
+    transform: scale(0.5);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(3);
+    opacity: 0;
+  }
+}
+@keyframes trajectory-glow {
+  0% {
+    r: 3.5;
+    opacity: 1;
+  }
+  70% {
+    r: 9;
+    opacity: 0.15;
+  }
+  100% {
+    r: 12;
+    opacity: 0;
+  }
+}

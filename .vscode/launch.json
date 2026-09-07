@@ -1,0 +1,93 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "前后端联调（演示）",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--experimental-strip-types"],
+      "program": "${workspaceFolder}/server/dev.mjs",
+      "args": ["--demo"],
+      "cwd": "${workspaceFolder}",
+      "console": "internalConsole",
+      "autoAttachChildProcesses": true,
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
+      "env": {
+        "PORT": "8787",
+        "VITE_PORT": "5173",
+        "DATA_DIR": "${env:LITECODE_DATA_DIR}"
+      },
+      "serverReadyAction": {
+        "pattern": "前后端已就绪：(http://127\\.0\\.0\\.1:[0-9]+)",
+        "action": "startDebugging",
+        "killOnServerStop": true,
+        "name": "前端浏览器（Edge）"
+      }
+    },
+    {
+      "name": "前后端联调（真实）",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--experimental-strip-types"],
+      "program": "${workspaceFolder}/server/dev.mjs",
+      "cwd": "${workspaceFolder}",
+      "console": "internalConsole",
+      "autoAttachChildProcesses": true,
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
+      "env": {
+        "PORT": "8788",
+        "VITE_PORT": "5173",
+        "DATA_DIR": "${env:LITECODE_DATA_DIR}"
+      },
+      "serverReadyAction": {
+        "pattern": "前后端已就绪：(http://127\\.0\\.0\\.1:[0-9]+)",
+        "action": "startDebugging",
+        "killOnServerStop": true,
+        "name": "前端浏览器（Edge）"
+      }
+    },
+    {
+      "name": "前端浏览器（Edge）",
+      "type": "msedge",
+      "request": "launch",
+      "url": "http://127.0.0.1:5173",
+      "webRoot": "${workspaceFolder}",
+      "userDataDir": "${workspaceFolder}/../liteCodeTool_tmp/debug-browser",
+      "skipFiles": ["**/node_modules/**"]
+    },
+    {
+      "name": "前端浏览器（Chrome）",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://127.0.0.1:5173",
+      "webRoot": "${workspaceFolder}",
+      "userDataDir": "${workspaceFolder}/../liteCodeTool_tmp/debug-chrome",
+      "skipFiles": ["**/node_modules/**"]
+    },
+    {
+      "name": "后端调试（演示）",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--experimental-strip-types"],
+      "program": "${workspaceFolder}/server/index.mjs",
+      "args": ["--demo"],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PORT": "8787",
+        "DATA_DIR": "${env:LITECODE_DATA_DIR}"
+      },
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "附加已有后端（需 --inspect）",
+      "type": "node",
+      "request": "attach",
+      "address": "127.0.0.1",
+      "port": 9229,
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ]
+}

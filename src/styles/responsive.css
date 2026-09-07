@@ -1,0 +1,128 @@
+@media (max-width: 1500px) {
+  .top-hub {
+    gap: 17px;
+    padding: 0 16px;
+  }
+  .brand {
+    min-width: 202px;
+  }
+  .top-hub nav :is(button, a) {
+    min-width: 90px;
+    font-size: 13px;
+    padding: 0 10px;
+  }
+  .top-status {
+    gap: 10px;
+  }
+  .asset-library {
+    width: 206px;
+  }
+  .inspector {
+    width: 276px;
+  }
+  .toolbar-actions {
+    gap: 6px;
+  }
+  .toolbar-actions .button {
+    padding: 0 9px;
+    font-size: 11px;
+  }
+  .screen-picker {
+    max-width: 232px;
+  }
+  .zoom-label {
+    display: none;
+  }
+  .toolbar-title {
+    gap: 6px;
+  }
+  .viewer-status {
+    font-size: 9px;
+  }
+  .canvas-bottom > span:last-child {
+    max-width: 55%;
+  }
+}
+@media (max-width: 1100px) {
+  .top-status .transport-status {
+    display: none;
+  }
+  .asset-library {
+    width: 180px;
+  }
+  .inspector {
+    width: 250px;
+  }
+  .brand small {
+    display: none;
+  }
+  .brand {
+    min-width: 175px;
+  }
+  .top-hub {
+    gap: 8px;
+  }
+  .top-hub nav :is(button, a) {
+    min-width: 75px;
+    font-size: 12px;
+  }
+  .source-tag {
+    font-size: 9px;
+  }
+  .workspace-toolbar {
+    height: auto;
+    min-height: 52px;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+  }
+  .screen-picker {
+    max-width: 220px;
+  }
+  .viewer-status {
+    bottom: 52px;
+    left: 12px;
+  }
+  .viewer-hud {
+    right: 12px;
+  }
+  .data-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+  .data-cards article:first-child {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *:before,
+  *:after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+@media (max-width: 1550px) {
+  .help-button {
+    display: none;
+  }
+  .toolbar-actions {
+    gap: 5px;
+  }
+  .workspace-toolbar .button {
+    padding: 0 9px;
+  }
+  .zoom-label {
+    display: none;
+  }
+  .top-status {
+    gap: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .radar-sweep,
+  .sonar-pulse {
+    animation: none !important;
+  }
+  * {
+    scroll-behavior: auto !important;
+  }
+}
