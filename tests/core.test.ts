@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { EntityStore, effectiveControl, effectiveSubTitle, resolveValue, inWindow, formatScalar, fitGeometry, safeImageUrl, validateScreen, validateTemplate, clone, validId, isRecordStale, DEFAULT_CHART_COLORS, DEFAULT_GLOBAL_CHART_FIELD, DEFAULT_SLOT_CHART_FIELD } from '../src/engine/core.ts';
+import { EntityStore, effectiveControl, effectiveSubTitle, resolveValue, inWindow, formatScalar, fitGeometry, safeImageUrl, validateScreen, validateTemplate, clone, validId, isRecordStale, alignTrajectoryPoints, DEFAULT_CHART_COLORS, DEFAULT_GLOBAL_CHART_FIELD, DEFAULT_SLOT_CHART_FIELD, formatControlDisplayName, formatControlSummary, formatControlOption, formatControlTag } from '../src/engine/core.ts';
 import type { ComponentInstance, ComponentTemplate, Control, Envelope, Schema } from '../src/types.ts';
 const schemas: Schema[] = [
   { type: 'vessel', name: '船舶', isEntity: true, fields: [{ key: 'speed', name: '航速', type: 'number', unit: '节', precision: 1 }, { key: 'lon', name: '经度', type: 'number', unit: '°E', precision: 6 }, { key: 'status', name: '状态', type: 'enum' }] },
@@ -246,57 +246,143 @@ test('副标题契约校验：validateTemplate 与 validateScreen 允许合法 s
   assert.throws(() => validateTemplate(badTpl, schemas), /副标题无效/);
 });
 
-test('自由双轴契约校验：validateTemplate 允许合法 xAxisMode 与 xAxisField 并拒绝非法取值', () => {
-  const tpl = clone(template);
-  const lineCtrl = tpl.controls.find(c => c.type === 'line');
-  if (lineCtrl) {
-    lineCtrl.props.xAxisMode = 'field';
-    lineCtrl.props.xAxisField = 'lon';
-    validateTemplate(tpl, schemas);
+test('自由双轴契约校验：validateTemplate 允许合法 xAxisMode、xAxisField 与 xAxisSlotId 并拒绝非法取值', () => {
+  const lineCtrl: Control = {
+    id: 'line_1',
+    type: 'line',
+    style: { x: 0, y: 0, w: 320, h: 200 },
+    props: {
+      lookbackMinutes: 20,
+      xAxisMode: 'field',
+      xAxisField: 'lon',
+      xAxisSlotId: 'slot_1',
+      series: [{ target: 'slot', slotId: 'slot_1', field: 'speed' }]
+    }
+  };
+  const lineTpl: ComponentTemplate = {
+    id: 'line_tpl',
+    name: '折线图模板',
+    category: '图表',
+    layout: { width: 320, height: 200 },
+    slots: [{ id: 'slot_1', label: '对象1', schemaType: 'vessel' }],
+    controls: [lineCtrl]
+  };
 
-    const badTpl1 = clone(tpl);
-    const badCtrl1 = badTpl1.controls.find(c => c.type === 'line')!;
-    badCtrl1.props.xAxisMode = 'invalid_mode' as any;
-    assert.throws(() => validateTemplate(badTpl1, schemas), /X 轴模式无效/);
+  validateTemplate(lineTpl, schemas);
 
-    const badTpl2 = clone(tpl);
-    const badCtrl2 = badTpl2.controls.find(c => c.type === 'line')!;
-    badCtrl2.props.xAxisField = 12345 as any;
-    assert.throws(() => validateTemplate(badTpl2, schemas), /X 轴字段无效/);
-  }
+  const badTpl1 = clone(lineTpl);
+  badTpl1.controls[0].props.xAxisMode = 'invalid_mode' as any;
+  assert.throws(() => validateTemplate(badTpl1, schemas), /X 轴模式无效/);
+
+  const badTpl2 = clone(lineTpl);
+  badTpl2.controls[0].props.xAxisField = 12345 as any;
+  assert.throws(() => validateTemplate(badTpl2, schemas), /X 轴字段无效/);
+
+  const badTpl3 = clone(lineTpl);
+  badTpl3.controls[0].props.xAxisSlotId = 'non_exist';
+  assert.throws(() => validateTemplate(badTpl3, schemas), /X 轴槽位无效/);
 });
 
-test('自由双轴时序对齐：实体池历史中按时间戳先后顺次连接经纬度生成航迹', () => {
-  const store = new EntityStore();
+test('自由双轴时序对齐纯函数：alignTrajectoryPoints 同拍时间戳精确匹配，空值与失配如实剔除', () => {
   const t0 = 1700000000000;
-  // 模拟同一艘船按时间顺序推入 3 个采样点
-  store.apply({ type: 'vessel', id: 'ship_01', timestamp: t0, data: { lon: 121.5, lat: 31.2, speed: 12.5 } });
-  store.apply({ type: 'vessel', id: 'ship_01', timestamp: t0 + 10000, data: { lon: 121.52, lat: 31.23, speed: 13.0 } });
-  store.apply({ type: 'vessel', id: 'ship_01', timestamp: t0 + 20000, data: { lon: 121.55, lat: 31.27, speed: 14.2 } });
-
-  const record = store.get('vessel', 'ship_01');
-  assert.ok(record);
-  const lonHistory = record.history.lon ?? [];
-  const latHistory = record.history.lat ?? [];
-  assert.equal(lonHistory.length, 3);
-  assert.equal(latHistory.length, 3);
-
-  // 验证对齐后按时间排序的航迹点对
-  const aligned = lonHistory.map((pt, idx) => ({
-    x: pt.value,
-    y: latHistory[idx]?.value,
-    timestamp: pt.timestamp
-  })).sort((a, b) => a.timestamp - b.timestamp);
-
+  // 1. 同拍时间戳精确配对
+  const xPoints = [
+    { timestamp: t0, value: 121.5 },
+    { timestamp: t0 + 10000, value: 121.52 },
+    { timestamp: t0 + 20000, value: 121.55 }
+  ];
+  const yPoints = [
+    { timestamp: t0, value: 31.2 },
+    { timestamp: t0 + 10000, value: 31.23 },
+    { timestamp: t0 + 20000, value: 31.27 }
+  ];
+  const aligned = alignTrajectoryPoints(xPoints, yPoints);
   assert.deepEqual(aligned, [
-    { x: 121.5, y: 31.2, timestamp: t0 },
-    { x: 121.52, y: 31.23, timestamp: t0 + 10000 },
-    { x: 121.55, y: 31.27, timestamp: t0 + 20000 }
+    { xVal: 121.5, yVal: 31.2, timestamp: t0 },
+    { xVal: 121.52, yVal: 31.23, timestamp: t0 + 10000 },
+    { xVal: 121.55, yVal: 31.27, timestamp: t0 + 20000 }
   ]);
-  // 确认最新末端点
-  const lastPt = aligned.at(-1);
-  assert.equal(lastPt?.x, 121.55);
-  assert.equal(lastPt?.y, 31.27);
+
+  // 2. 空值与时间戳失配断流如实剔除
+  const xWithNull = [
+    { timestamp: t0, value: 121.5 },
+    { timestamp: t0 + 10000, value: null },
+    { timestamp: t0 + 20000, value: 121.55 }
+  ];
+  const yWithMismatch = [
+    { timestamp: t0, value: 31.2 },
+    { timestamp: t0 + 10000, value: 31.23 },
+    { timestamp: t0 + 30000, value: 31.3 }
+  ];
+  const filtered = alignTrajectoryPoints(xWithNull, yWithMismatch);
+  assert.deepEqual(filtered, [
+    { xVal: 121.5, yVal: 31.2, timestamp: t0 }
+  ]);
+
+  // 3. 空输入防御
+  assert.deepEqual(alignTrajectoryPoints([], []), []);
+});
+
+test('控件语义化展示与 UUID 消除：正确生成人类友好的中文名称与内容摘要', () => {
+  const lineCtrl: Control = {
+    id: 'ctrl_line_test',
+    type: 'line',
+    style: { x: 0, y: 0, w: 200, h: 100 },
+    props: { sourceMode: 'dynamic', series: [{ field: 'speed' }, { field: 'heading' }] }
+  };
+  const trajCtrl: Control = {
+    id: 'ctrl_traj_test',
+    type: 'line',
+    style: { x: 0, y: 0, w: 200, h: 100 },
+    props: { sourceMode: 'dynamic', xAxisMode: 'field', xAxisField: 'lon', series: [{ field: 'lat' }] }
+  };
+  const textCtrl: Control = {
+    id: 'ctrl_text_test',
+    type: 'text',
+    style: { x: 0, y: 0, w: 100, h: 40 },
+    props: { sourceMode: 'static', staticValue: 'AIS 船舶实时监管与调度大屏' }
+  };
+  const kpiCtrl: Control = {
+    id: 'ctrl_kpi_test',
+    type: 'number',
+    style: { x: 0, y: 0, w: 100, h: 40 },
+    props: { sourceMode: 'dynamic', variant: 'kpi' },
+    binding: { target: 'global', schemaType: 'port_stats', field: 'total_vessels' }
+  };
+  const imgCtrl: Control = {
+    id: 'ctrl_img_test',
+    type: 'image',
+    style: { x: 0, y: 0, w: 50, h: 50 },
+    props: { sourceMode: 'static', imageType: 'radar' }
+  };
+
+  // 1. 显示名称验证
+  assert.equal(formatControlDisplayName(lineCtrl, 0), '折线图 1');
+  assert.equal(formatControlDisplayName(textCtrl, 1), '文本 2');
+  assert.equal(formatControlDisplayName(imgCtrl), '图片');
+
+  // 2. 内容摘要验证
+  assert.equal(formatControlSummary(lineCtrl), '时序曲线 (speed, heading)');
+  assert.equal(formatControlSummary(trajCtrl), '双轴航迹 (lon)');
+  assert.equal(formatControlSummary(textCtrl), '"AIS 船舶实时监管与调…"');
+  assert.equal(formatControlSummary(kpiCtrl), 'KPI · total_vessels');
+  assert.equal(formatControlSummary(imgCtrl), '雷达扫描');
+
+  // 3. 完整下拉选项验证
+  assert.equal(formatControlOption(lineCtrl, 0), '折线图 1 · 时序曲线 (speed, heading)');
+  assert.equal(formatControlOption(textCtrl, 1), '文本 2 · "AIS 船舶实时监管与调…"');
+
+  // 4. 面包屑标签验证
+  const tpl: ComponentTemplate = {
+    id: 'tpl_test',
+    name: '测试模板',
+    category: '基础',
+    layout: { width: 500, height: 300 },
+    slots: [],
+    controls: [lineCtrl, textCtrl]
+  };
+  assert.equal(formatControlTag(lineCtrl, tpl), '折线图 1 (时序曲线 (speed, heading))');
+  assert.equal(formatControlTag(textCtrl, tpl), '文本 2 ("AIS 船舶实时监管与调…")');
 });
 
 

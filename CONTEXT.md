@@ -166,3 +166,8 @@ AI 实施成果报告（`walkthrough.md`）及关键验证记录在系统内部�
 **Dual-Axis Field Mapping (双轴字段映射 / 自由坐标轴)**:
 图表控件中 X 轴与 Y 轴的显式解耦映射机制。X 轴支持选择时间序列维度（滑动回溯窗口）或实体属性字段，Y 轴映射业务度量指标字段，支持多曲线各自绑定不同的数据字段或对象占位符。
 - _避免使用 (Avoid)_: Rigid timeline, locked-axis chart, fixed time series, single dimension plot
+
+**Temporal Point Alignment Tolerance (时序点对对齐容差 / 航迹采样容差)**:
+在自由双轴映射（如经度 vs 纬度生成空间航迹线）场景下，两个不同属性字段在物联网通信中可能存在毫秒级物理采样抖动或异步增量上报。系统以时间戳为统一物理动力学基准，在设定的最大时间容差窗口（默认 5 秒 / 5000ms）内寻找最接近采样点合成坐标点对 `(x, y)`；超出容差则视作采样断流如实断开，坚决不跨时间段强行错配。
+- _避免使用 (Avoid)_: Point match tolerance, sync window, tick diff, time threshold
+

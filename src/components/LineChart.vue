@@ -3,13 +3,8 @@ import { computed, defineComponent, ref } from 'vue';
 import type { PropType } from 'vue';
 import type { ComponentInstance, ComponentTemplate, Control, Point } from '../types.ts';
 import { state } from '../runtime.ts';
-import { inWindow, DEFAULT_CHART_COLORS } from '../engine/core.ts';
-
-interface TrajectoryPoint {
-  xVal: number;
-  yVal: number;
-  timestamp: number;
-}
+import { inWindow, DEFAULT_CHART_COLORS, alignTrajectoryPoints } from '../engine/core.ts';
+import type { TrajectoryPoint } from '../engine/core.ts';
 
 export default defineComponent({
   props: { control: { type: Object as PropType<Control>, required: true }, template: { type: Object as PropType<ComponentTemplate>, required: true }, instance: { type: Object as PropType<ComponentInstance>, required: true } },
@@ -59,8 +54,9 @@ export default defineComponent({
 
       const slot = props.template.slots.find(s => s.id === seriesItem.slotId);
       const id = props.instance.slotBindings[seriesItem.slotId ?? ''];
-      const field = state.schemas.find(s => s.type === slot?.schemaType)?.fields.find(f => f.key === seriesItem.field);
-      const record = id ? state.store.get(slot?.schemaType, id) : undefined;
+      const schema = state.schemas.find(s => s.type === slot?.schemaType);
+      const record = id ? state.store.get(slot?.schemaType ?? 'vessel', id) : undefined;
+      const field = schema?.fields.find(f => f.key === seriesItem.field);
       const points = inWindow(record?.history[seriesItem.field] ?? [], state.now, minutes.value);
       const lastPt = points.length && points.at(-1)?.value !== null ? points.at(-1)!.value : null;
 
@@ -70,31 +66,12 @@ export default defineComponent({
         label = `【${slot?.label || '对象' + (index + 1)}】`;
       }
 
-      // 双轴时序航迹提取
-      const trajectoryPoints: TrajectoryPoint[] = [];
-      if (isFieldAxis.value && record) {
-        const xPoints = inWindow(record.history[xFieldName.value] ?? [], state.now, minutes.value);
-        const yPoints = points;
-        // 按时间戳顺序将 x 与 y 对齐（容差 5 秒内）
-        for (const yPt of yPoints) {
-          if (yPt.value === null) continue;
-          let bestX: Point | null = null;
-          let bestDiff = 5000;
-          for (const xPt of xPoints) {
-            if (xPt.value === null) continue;
-            const diff = Math.abs(xPt.timestamp - yPt.timestamp);
-            if (diff < bestDiff) {
-              bestDiff = diff;
-              bestX = xPt;
-            }
-          }
-          if (bestX && bestX.value !== null) {
-            trajectoryPoints.push({
-              xVal: bestX.value,
-              yVal: yPt.value,
-              timestamp: yPt.timestamp
-            });
-          }
+      // 双轴时序航迹提取（O(N) 线性纯函数匹配）：每条曲线天然使用自身对象的 X 轴度量
+      let trajectoryPoints: TrajectoryPoint[] = [];
+      if (isFieldAxis.value) {
+        if (record) {
+          const xPoints = inWindow(record.history[xFieldName.value] ?? [], state.now, minutes.value);
+          trajectoryPoints = alignTrajectoryPoints(xPoints, points);
         }
       }
 
@@ -250,11 +227,11 @@ export default defineComponent({
     <div class="chart-meta">
       <span v-if="isFieldAxis">
         双轴航迹 <i>·</i> X: {{ xFieldMeta?.name || xFieldName }} <i>·</i> Y: {{ series[0]?.fieldName || '未配置' }}
-        <span v-if="isWorkshop" class="workshop-chart-hint">模具预览中</span>
+        <span v-if="isWorkshop" class="workshop-chart-hint">模具预览中 · 实际船舶在投屏大屏中指派</span>
       </span>
       <span v-else>
         近 {{ minutes }} 分钟 <i>·</i> {{ series[0]?.fieldName || '未配置字段' }}（{{ series[0]?.unit || '数值' }}）
-        <span v-if="isWorkshop" class="workshop-chart-hint">模具预览中</span>
+        <span v-if="isWorkshop" class="workshop-chart-hint">模具预览中 · 实际船舶在投屏大屏中指派</span>
       </span>
       <div class="chart-legend">
         <span v-for="(s, index) in series" :key="index">

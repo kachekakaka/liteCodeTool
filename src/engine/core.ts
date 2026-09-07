@@ -149,6 +149,7 @@ function controls(template: ComponentTemplate, schemas: Schema[]): void {
       if (c.props.lookbackMinutes !== undefined && (!finite(c.props.lookbackMinutes) || c.props.lookbackMinutes < 1 || c.props.lookbackMinutes > 60)) throw new Error('曲线时间窗口应为 1~60 分钟');
       if (c.props.xAxisMode !== undefined && !['time', 'field'].includes(c.props.xAxisMode)) throw new Error('X 轴模式无效');
       if (c.props.xAxisField !== undefined && (typeof c.props.xAxisField !== 'string' || c.props.xAxisField.length > 50)) throw new Error('X 轴字段无效');
+      if (c.props.xAxisSlotId && (!validId(c.props.xAxisSlotId) || !template.slots.some(s => s.id === c.props.xAxisSlotId))) throw new Error('X 轴槽位无效');
       if (c.props.series !== undefined && Array.isArray(c.props.series)) {
         for (const s of c.props.series) {
           const isGlobal = s.target === 'global' || c.binding?.target === 'global';
@@ -166,10 +167,125 @@ function controls(template: ComponentTemplate, schemas: Schema[]): void {
     }
   }
 }
+
+export interface TrajectoryPoint {
+  xVal: number;
+  yVal: number;
+  timestamp: number;
+}
+
+/**
+ * 同拍时序空间航迹对齐（O(N) 线性时间单次对齐）
+ * 依据时间戳将 X 轴点集与 Y 轴点集毫秒级匹配成二维坐标点对 (xVal, yVal)。
+ * 仅保留双方均非空有效的时间戳点对，按时间顺序自然返回。
+ */
+export function alignTrajectoryPoints(
+  xPoints: Array<{ timestamp: number; value: number | null }>,
+  yPoints: Array<{ timestamp: number; value: number | null }>
+): TrajectoryPoint[] {
+  if (!xPoints.length || !yPoints.length) return [];
+  const xMap = new Map<number, number>();
+  for (const xPt of xPoints) {
+    if (xPt.value !== null && finite(xPt.value)) {
+      xMap.set(xPt.timestamp, xPt.value);
+    }
+  }
+  const result: TrajectoryPoint[] = [];
+  for (const yPt of yPoints) {
+    if (yPt.value === null || !finite(yPt.value)) continue;
+    const xVal = xMap.get(yPt.timestamp);
+    if (xVal !== undefined) {
+      result.push({
+        xVal,
+        yVal: yPt.value,
+        timestamp: yPt.timestamp
+      });
+    }
+  }
+  return result;
+}
+
 export function effectiveSubTitle(instance?: { subTitle?: string }, template?: { subTitle?: string; slots?: unknown[] }): string {
   if (instance && instance.subTitle !== undefined) return instance.subTitle.trim();
   if (template && template.subTitle !== undefined) return template.subTitle.trim();
   return template && template.slots && template.slots.length ? '目标监控' : '数据总览';
+}
+
+export const CONTROL_TYPE_LABELS: Record<string, string> = {
+  text: '文本',
+  number: '数值',
+  time: '时间',
+  light: '指示灯',
+  table: '表格',
+  line: '折线图',
+  image: '图片'
+};
+
+export function formatControlDisplayName(control: Control, index?: number): string {
+  const base = CONTROL_TYPE_LABELS[control.type] ?? control.type;
+  return index !== undefined ? `${base} ${index + 1}` : base;
+}
+
+export function formatControlSummary(control: Control): string {
+  const props = control.props || {};
+  switch (control.type) {
+    case 'line': {
+      if (props.xAxisMode === 'field') {
+        return `双轴航迹 (${props.xAxisField || 'X轴'})`;
+      }
+      const series = props.series || [];
+      const fields = series.map((s: { field?: string }) => s.field).filter(Boolean).join(', ');
+      return fields ? `时序曲线 (${fields})` : series.length ? `时序曲线 (${series.length} 组)` : '时序曲线';
+    }
+    case 'text': {
+      if (props.sourceMode === 'dynamic') {
+        return control.binding?.field ? `动态 · ${control.binding.field}` : '动态文本';
+      }
+      if (props.clock) return '实时时钟';
+      if (props.staticValue !== undefined && props.staticValue !== null && props.staticValue !== '') {
+        const str = String(props.staticValue);
+        return `"${str.length > 12 ? str.slice(0, 12) + '…' : str}"`;
+      }
+      return '固定文本';
+    }
+    case 'number': {
+      if (props.variant === 'kpi') {
+        return control.binding?.field ? `KPI · ${control.binding.field}` : 'KPI 指标卡';
+      }
+      if (control.binding?.field) return `动态 · ${control.binding.field}`;
+      if (props.staticValue !== undefined && props.staticValue !== null) return `固定值: ${props.staticValue}`;
+      return '数值';
+    }
+    case 'light': {
+      return control.binding?.field ? `状态 · ${control.binding.field}` : '指示灯';
+    }
+    case 'time': {
+      if (props.clock) return '当前时间 (时钟)';
+      return control.binding?.field ? `时间 · ${control.binding.field}` : '时间';
+    }
+    case 'table': {
+      const cols = props.columns?.length;
+      return cols ? `表格 (${cols} 列)` : '数据表格';
+    }
+    case 'image': {
+      if (props.imageType === 'radar') return '雷达扫描';
+      if (props.imageType === 'sonar') return '声纳波纹';
+      return '自定义图片';
+    }
+    default:
+      return control.type;
+  }
+}
+
+export function formatControlOption(control: Control, index: number): string {
+  return `${formatControlDisplayName(control, index)} · ${formatControlSummary(control)}`;
+}
+
+export function formatControlTag(control: Control, template?: { controls: Control[] }): string {
+  const idx = template?.controls ? template.controls.findIndex(c => c.id === control.id) : -1;
+  const name = formatControlDisplayName(control, idx >= 0 ? idx : undefined);
+  const summary = formatControlSummary(control);
+  return `${name} (${summary})`;
 }
 export function validateTemplate(template: ComponentTemplate, schemas: Schema[]): void {
   assertJsonSafe(template);

@@ -1,7 +1,7 @@
 <script lang="ts">
 import { computed, defineComponent, ref } from 'vue';
 import type { Binding, ControlProps, Geometry } from '../types.ts';
-import { clone, fitGeometry, resolveValue, sourceType, DEFAULT_CHART_COLORS, DEFAULT_GLOBAL_CHART_FIELD, DEFAULT_SLOT_CHART_FIELD } from '../engine/core.ts';
+import { clone, fitGeometry, resolveValue, sourceType, DEFAULT_CHART_COLORS, DEFAULT_GLOBAL_CHART_FIELD, DEFAULT_SLOT_CHART_FIELD, formatControlOption, formatControlTag } from '../engine/core.ts';
 import { state, selectedInstance, selectedTemplate, selectedControl, displayControl, checkpoint, patchControl, retarget, addSlot, removeSlot, createSlot, renameSlot, notify, alignInstance, moveLayer } from '../runtime.ts';
 export default defineComponent({
   setup() {
@@ -308,14 +308,14 @@ export default defineComponent({
         selectedInstance.value.subTitle = val.trim();
       }
     }
-    return { lineSchemaType, currentLineSchema, currentLineNumericFields, changeLineSchema, creatingSlotForSeries, newSlotDraft, renamingSlotId, renameSlotDraft, onSlotSelectChange, commitNewSlot, cancelNewSlot, startRenameSlot, commitRenameSlot, cancelRenameSlot, setXAxisMode, changeXAxisField, headerChecked, instanceTitle, instanceSubTitle, defaultSubTitlePlaceholder, showResetSubTitle, resetSubTitle, changeInstanceTitle, changeInstanceSubTitle, changeKpiIcon, kpiEmblemUpload, alignInstance, moveLayer, lightRule, addLightRule, removeLightRule, state, tab, geometryKeys, filterValue, selectedInstance, selectedTemplate, selectedControl, displayControl, isLineGlobal, v, checked, schema, fields, scalar, resolved, props, mode, setLineSourceMode, globalNumericFields, bindTarget, changeField, position, dimension, resetOverride, staticValue, numberProp, custom, seriesChange, seriesAdd, seriesRemove, numericFields, tableSchema, column, imageUpload, renameScreen, header, layer, targets, assign, addSlot, removeSlot, checkpoint, patchControl };
+    return { formatControlOption, formatControlTag, lineSchemaType, currentLineSchema, currentLineNumericFields, changeLineSchema, creatingSlotForSeries, newSlotDraft, renamingSlotId, renameSlotDraft, onSlotSelectChange, commitNewSlot, cancelNewSlot, startRenameSlot, commitRenameSlot, cancelRenameSlot, setXAxisMode, changeXAxisField, headerChecked, instanceTitle, instanceSubTitle, defaultSubTitlePlaceholder, showResetSubTitle, resetSubTitle, changeInstanceTitle, changeInstanceSubTitle, changeKpiIcon, kpiEmblemUpload, alignInstance, moveLayer, lightRule, addLightRule, removeLightRule, state, tab, geometryKeys, filterValue, selectedInstance, selectedTemplate, selectedControl, displayControl, isLineGlobal, v, checked, schema, fields, scalar, resolved, props, mode, setLineSourceMode, globalNumericFields, bindTarget, changeField, position, dimension, resetOverride, staticValue, numberProp, custom, seriesChange, seriesAdd, seriesRemove, numericFields, tableSchema, column, imageUpload, renameScreen, header, layer, targets, assign, addSlot, removeSlot, checkpoint, patchControl };
   }
 });
 </script>
 <template>
   <aside class="inspector"><div class="aside-title"><span>属性检查器</span><span class="eyebrow">INSPECTOR</span></div><div class="inspector-scroll">
     <template v-if="!selectedTemplate"><div class="inspector-context"><small>当前选中</small><h3>大屏画布</h3></div><section v-if="state.screen" class="property-section"><h4>画布配置</h4><label>大屏名称<input :value="state.screen.name" maxlength="120" @change="renameScreen"></label><label>基准分辨率<input value="1920 × 1080（标准基准）" disabled></label><p class="field-help">固定 1920×1080 标准基准；投屏自动等比适配视口，非 16:9 屏幕保留必要留白，不裁切业务内容。</p></section><div class="inspector-tip">点击组件选择实例，点击内部数值或文本选择具体控件。</div></template>
-    <template v-else><div class="inspector-context"><small>{{ state.view==='workshop'?'组件模板（源资产）':'组件实例（私有配置）' }}</small><h3>{{ selectedTemplate.name }}</h3><select aria-label="选中控件" v-model="state.selectedControl"><option value="">整个组件{{ state.view==='workshop'?'模板':'实例' }}</option><option v-for="c in selectedTemplate.controls" :key="c.id" :value="c.id">{{ c.id }} · {{ c.type }}</option></select><p v-if="displayControl" class="selected-path">{{ selectedTemplate.name }} <b>›</b> {{ displayControl.id }} <button class="link-button" style="margin-left:6px;" @click="state.selectedControl=''">[选整个组件]</button></p></div>
+    <template v-else><div class="inspector-context"><small>{{ state.view==='workshop'?'组件模板（源资产）':'组件实例（私有配置）' }}</small><h3>{{ selectedTemplate.name }}</h3><select aria-label="选中控件" v-model="state.selectedControl"><option value="">整个组件{{ state.view==='workshop'?'模板':'实例' }}</option><option v-for="(c, index) in selectedTemplate.controls" :key="c.id" :value="c.id">{{ formatControlOption(c, index) }}</option></select><p v-if="displayControl" class="selected-path">{{ selectedTemplate.name }} <b>›</b> {{ formatControlTag(displayControl, selectedTemplate) }} <button class="link-button" style="margin-left:6px;" @click="state.selectedControl=''">[选整个组件]</button></p></div>
       <section class="property-section card-header-pinned">
         <h4>组件卡头设置</h4>
         <label class="checkbox-row"><input type="checkbox" :checked="headerChecked" @change="header">显示组件卡头</label>
@@ -359,7 +359,7 @@ export default defineComponent({
                   <option v-for="field in currentLineNumericFields" :key="field.key" :value="field.key">{{ field.name }}{{ field.unit ? ' / ' + field.unit : '' }}</option>
                 </select>
               </label>
-              <p class="field-help">X 与 Y 轴按采样时间先后顺序顺次连线，实时呈现航迹线；末端发光高亮最新位置。</p>
+              <p class="field-help">X 与 Y 轴按采样时间先后顺序顺次连线，各对象实时呈现各自航迹；末端发光高亮最新位置。</p>
             </template>
 
             <h4>曲线配置 (Y 轴度量)</h4>

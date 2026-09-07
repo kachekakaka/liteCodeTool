@@ -11,8 +11,8 @@ export default defineComponent({
   emits: ['drag'],
   setup(props, { emit }) {
     const popover = ref(false); let touchTimer: ReturnType<typeof setTimeout> | undefined; let touchStart = { x: 0, y: 0 };
-    const editingTitle = ref(false); const titleDraft = ref('');
-    const editingSubTitle = ref(false); const subTitleDraft = ref('');
+    const editingTitle = ref(false); const titleDraft = ref(''); const titleInputRef = ref<HTMLInputElement | null>(null);
+    const editingSubTitle = ref(false); const subTitleDraft = ref(''); const subTitleInputRef = ref<HTMLInputElement | null>(null);
     const viewing = computed(() => state.view === 'viewer');
     const isSelected = computed(() => props.workshop || state.selectedInstance === props.instance.instanceId);
     const outer = computed(() => ({ '--accent': props.template.controls[0] ? effectiveControl(props.template.controls[0],props.instance).style.color ?? '#22D3EE' : '#22D3EE', left: props.instance.position.x+'px', top: props.instance.position.y+'px', width: props.instance.position.w+'px', height: props.instance.position.h+'px', zIndex: popover.value ? 3000 : isSelected.value && !viewing.value ? 2000 : props.instance.position.zIndex ?? 1 }));
@@ -27,12 +27,12 @@ export default defineComponent({
         : Math.max(10, Math.round(baseSize * scaleRatio));
       return { left: (c.style.x/props.template.layout.width*100)+'%', top: (c.style.y/props.template.layout.height*100)+'%', width: (c.style.w/props.template.layout.width*100)+'%', height: (c.style.h/props.template.layout.height*100)+'%', fontSize: effectiveFontSize + 'px', color: c.style.color ?? '#DBF4FF' };
     };
-    function startEditTitle() { editingTitle.value = true; titleDraft.value = props.instance.title ?? props.template.name; nextTick(() => { (document.querySelector(`[data-instance="${props.instance.instanceId}"] .inline-title-input`) as HTMLInputElement)?.focus(); }); }
-    function commitTitle() { if (!editingTitle.value) return; editingTitle.value = false; const next = titleDraft.value.trim(); if (props.workshop) { if (state.draft) state.draft.name = next || '未命名模板'; } else { checkpoint(); props.instance.title = next; } }
-    function cancelTitle() { editingTitle.value = false; }
-    function startEditSubTitle() { editingSubTitle.value = true; subTitleDraft.value = props.instance.subTitle !== undefined ? props.instance.subTitle : (props.template.subTitle ?? (props.template.slots.length ? '目标监控' : '数据总览')); nextTick(() => { (document.querySelector(`[data-instance="${props.instance.instanceId}"] .inline-subtitle-input`) as HTMLInputElement)?.focus(); }); }
+    function startEditTitle() { editingTitle.value = true; titleDraft.value = props.instance.title ?? props.template.name; nextTick(() => { titleInputRef.value?.focus(); titleInputRef.value?.select(); }); }
+    function commitTitle() { if (!editingTitle.value) return; editingTitle.value = false; const next = titleDraft.value.trim(); const fallback = props.template.name || '未命名组件'; const finalValue = next || fallback; titleDraft.value = finalValue; if (props.workshop) { if (state.draft) state.draft.name = finalValue; } else { checkpoint(); props.instance.title = finalValue; } }
+    function cancelTitle() { editingTitle.value = false; titleDraft.value = props.instance.title ?? props.template.name; }
+    function startEditSubTitle() { editingSubTitle.value = true; subTitleDraft.value = props.instance.subTitle !== undefined ? props.instance.subTitle : (props.template.subTitle ?? (props.template.slots.length ? '目标监控' : '数据总览')); nextTick(() => { subTitleInputRef.value?.focus(); subTitleInputRef.value?.select(); }); }
     function commitSubTitle() { if (!editingSubTitle.value) return; editingSubTitle.value = false; const next = subTitleDraft.value.trim(); if (props.workshop) { if (state.draft) state.draft.subTitle = next; } else { checkpoint(); props.instance.subTitle = next; } }
-    function cancelSubTitle() { editingSubTitle.value = false; }
+    function cancelSubTitle() { editingSubTitle.value = false; subTitleDraft.value = currentSubTitle.value; }
     function choose(controlId = '') { if (!viewing.value) { if (props.workshop) state.selectedControl = controlId; else select(props.instance.instanceId, controlId); } }
     function pointerDown(event: PointerEvent, controlId = '', resize = false) { if(event.button!==0)return; if (viewing.value) { touch(event); return; } if (controlId && !props.workshop) { choose(controlId); return; } event.preventDefault(); choose(controlId); emit('drag', { event, instanceId: props.instance.instanceId, controlId, resize }); }
     function enter() { /* 悬停仅浮现右上角切换按钮 ⇄，不自动弹出大面板 */ }
@@ -44,13 +44,13 @@ export default defineComponent({
     const changeTarget = (slot: string, event: Event) => retarget(props.instance.instanceId, slot, (event.target as HTMLSelectElement).value);
     const popoverUp = computed(() => (props.instance.position?.y ?? 0) > 600);
     onUnmounted(() => { clearTimeout(touchTimer); });
-    return { editingTitle, titleDraft, startEditTitle, commitTitle, cancelTitle, editingSubTitle, subTitleDraft, currentSubTitle, startEditSubTitle, commitSubTitle, cancelSubTitle, state, popover, popoverUp, viewing, isSelected, outer, showHeader, geometry, choose, pointerDown, enter, leave, touch, move, cancelTouch, options, changeTarget, openDrawer };
+    return { titleInputRef, subTitleInputRef, editingTitle, titleDraft, startEditTitle, commitTitle, cancelTitle, editingSubTitle, subTitleDraft, currentSubTitle, startEditSubTitle, commitSubTitle, cancelSubTitle, state, popover, popoverUp, viewing, isSelected, outer, showHeader, geometry, choose, pointerDown, enter, leave, touch, move, cancelTouch, options, changeTarget, openDrawer };
   }
 });
 </script>
 <template>
   <section class="instance-card tech-panel" :class="{ selected: isSelected&&!viewing, 'banner-card': template.decoration==='banner', 'kpi-card': template.controls.some(c=>c.props.variant==='kpi'), 'has-slots': template.slots.length > 0 }" :data-instance="instance.instanceId" :style="outer" @click.stop="choose()" @pointerenter="enter" @pointerleave="leave" @pointerdown="touch" @pointermove="move" @pointerup="cancelTouch" @pointercancel="cancelTouch">
-    <div v-if="showHeader" class="card-heading" @pointerdown.stop="pointerDown($event)"><span class="heading-mark"></span><input v-if="editingTitle" v-model="titleDraft" class="inline-title-input" autofocus @keydown.enter.stop="commitTitle" @keydown.esc.stop="cancelTitle" @blur="commitTitle" @pointerdown.stop @click.stop @dblclick.stop/><strong v-else :title="instance.title || template.name" @dblclick.stop="startEditTitle">{{ instance.title || template.name }}</strong><input v-if="editingSubTitle" v-model="subTitleDraft" class="inline-subtitle-input" autofocus @keydown.enter.stop="commitSubTitle" @keydown.esc.stop="cancelSubTitle" @blur="commitSubTitle" @pointerdown.stop @click.stop @dblclick.stop/><span v-else-if="currentSubTitle" class="card-meta" :title="currentSubTitle" @dblclick.stop="startEditSubTitle">{{ currentSubTitle }}</span></div>
+    <div v-if="showHeader" class="card-heading" @pointerdown.stop="pointerDown($event)"><span class="heading-mark"></span><input v-if="editingTitle" ref="titleInputRef" v-model="titleDraft" class="inline-title-input" :placeholder="template.name" autofocus @keydown.enter.stop="commitTitle" @keydown.esc.stop="cancelTitle" @blur="commitTitle" @pointerdown.stop @click.stop @dblclick.stop @dragstart.prevent/><strong v-else :title="instance.title || template.name" @dblclick.stop="startEditTitle">{{ instance.title || template.name }}</strong><input v-if="editingSubTitle" ref="subTitleInputRef" v-model="subTitleDraft" class="inline-subtitle-input" placeholder="输入副标题" autofocus @keydown.enter.stop="commitSubTitle" @keydown.esc.stop="cancelSubTitle" @blur="commitSubTitle" @pointerdown.stop @click.stop @dblclick.stop @dragstart.prevent/><span v-else-if="currentSubTitle" class="card-meta" :title="currentSubTitle" @dblclick.stop="startEditSubTitle">{{ currentSubTitle }}</span></div>
     <div v-for="control in template.controls" :key="control.id" :data-control="control.id" class="control-position" :class="{ 'control-selected': isSelected&&!viewing&&state.selectedControl===control.id, 'workshop-control': workshop }" :style="geometry(control)" @click.stop="choose(control.id)" @pointerdown.stop="pointerDown($event,control.id)">
       <ControlRenderer :control="control" :template="template" :instance="instance"/>
       <span v-if="workshop&&state.selectedControl===control.id" class="control-resize" @pointerdown.stop="pointerDown($event,control.id,true)"></span>

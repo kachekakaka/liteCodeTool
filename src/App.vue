@@ -1,7 +1,7 @@
 <script lang="ts">
 import { computed, defineComponent, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import type { ComponentInstance, ControlType, Geometry } from './types.ts';
-import { clone, fitGeometry } from './engine/core.ts';
+import { clone, fitGeometry, formatControlDisplayName, formatControlSummary } from './engine/core.ts';
 import * as runtime from './runtime.ts';
 import InstanceCard from './components/InstanceCard.vue';
 import Inspector from './components/Inspector.vue';
@@ -63,7 +63,7 @@ export default defineComponent({
     }
     onMounted(async () => { window.addEventListener('keydown', keyboard); await runtime.initialize(); await observe(); });
     onUnmounted(() => { observer?.disconnect(); cleanupDrag?.(); runtime.dispose(); window.removeEventListener('keydown', keyboard); });
-    return { ...runtime, viewport, dimensions, logical, scale, search, atoms, assets, templateOf, controlLabel, controlIcon, previewInstance, libraryDrag, drop, drag, removeControl, valueOf: (e: Event) => (e.target as HTMLInputElement).value };
+    return { ...runtime, viewport, dimensions, logical, scale, search, atoms, assets, templateOf, controlLabel, controlIcon, formatControlDisplayName, formatControlSummary, previewInstance, libraryDrag, drop, drag, removeControl, valueOf: (e: Event) => (e.target as HTMLInputElement).value };
   }
 });
 </script>
@@ -77,7 +77,7 @@ export default defineComponent({
       <div class="workspace">
         <aside v-if="state.view!=='viewer'&&state.leftOpen" class="asset-library"><div class="aside-title"><span>{{ state.view==='workshop'?'原子控件库':'组件资产库' }}</span><span class="asset-count">{{ state.view==='workshop'?7:assets.length }}</span></div><div class="library-scroll"><input v-if="state.view==='editor'" v-model="search" class="library-search" placeholder="搜索组件模板…"><h4 class="library-section-title">基础原子控件</h4><div class="atom-grid"><button v-for="atom in atoms" :key="atom.id" :draggable="state.view==='editor'" @dragstart="libraryDrag($event,atom.id)" @click="state.view==='workshop'?addControl(atom.controls[0].type):addTemplate(atom.id)"><span>{{ controlIcon(atom.controls[0].type) }}</span><small>{{ controlLabel(atom.controls[0].type) }}</small></button></div>
           <template v-if="state.view==='editor'"><h4 class="library-section-title">可复用业务组件</h4><div v-for="asset in assets" :key="asset.id" class="asset-tile" draggable="true" @dragstart="libraryDrag($event,asset.id)"><button class="asset-add" @click="addTemplate(asset.id)"><span class="asset-preview" :class="'preview-'+asset.controls[0]?.type"><i></i><i></i><i></i><i></i></span><strong>{{ asset.name }}</strong><small>{{ asset.controls.length }} 个控件 · {{ asset.slots.length }} 个对象槽位</small></button><button class="asset-edit" @click="editTemplate(asset)" title="在组件工坊编辑">编辑模板 ↗</button></div></template>
-          <template v-else><h4 class="library-section-title">控件树 <span>{{ state.draft?.controls.length }}</span></h4><button v-for="c in state.draft?.controls" :key="c.id" class="tree-item" :class="{active:state.selectedControl===c.id}" @click="state.selectedControl=c.id"><span>{{ controlIcon(c.type) }}</span><div><strong>{{ controlLabel(c.type) }}</strong><small>{{ c.id }}</small></div></button><p v-if="!state.draft?.controls.length" class="empty-note">点击上方原子控件，开始制作组件模板。</p><button v-if="state.selectedControl" class="button danger full" @click="removeControl">移除选中控件</button></template>
+          <template v-else><h4 class="library-section-title">控件树 <span>{{ state.draft?.controls.length }}</span></h4><button v-for="(c, index) in state.draft?.controls" :key="c.id" class="tree-item" :class="{active:state.selectedControl===c.id}" @click="state.selectedControl=c.id"><span>{{ controlIcon(c.type) }}</span><div><strong>{{ formatControlDisplayName(c, index) }}</strong><small>{{ formatControlSummary(c) }}</small></div></button><p v-if="!state.draft?.controls.length" class="empty-note">点击上方原子控件，开始制作组件模板。</p><button v-if="state.selectedControl" class="button danger full" @click="removeControl">移除选中控件</button></template>
         </div></aside>
         <div class="canvas-area"><div v-if="state.view==='workshop'" class="workshop-note"><span>组件模板画布</span>实体数据仅用于预览；具体对象不会保存进模板。</div><div ref="viewport" class="canvas-viewport" :class="{'viewer-viewport':state.view==='viewer'}" @click="clearSelection">
           <div class="scaled-stage" :style="{width:logical.width*scale+'px',height:logical.height*scale+'px'}"><div class="screen-canvas" :class="{'workshop-canvas':state.view==='workshop'}" :style="{width:logical.width+'px',height:logical.height+'px',transform:'scale('+scale+')',backgroundColor:state.screen?.background}" @dragover.prevent @drop="drop">
