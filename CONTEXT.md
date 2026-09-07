@@ -111,8 +111,13 @@ AI 实施成果报告（`walkthrough.md`）及关键验证记录在系统内部�
 - _避免使用 (Avoid)_: Settings sidebar, admin popup, vessel modal, global panel
 
 **In-situ Retargeting Trigger (就地重定向触发器)**:
-在无头纯净模式卡片上，支持鼠标长停留悬停（Hover）与触控长按（Long Press）呼出卡片专属换船微型面板的快捷交互机制，与全局监控对象抽屉互为补充。
+卡片上支持的轻量换船交互入口（编辑态与显示态全视图模式统一支持）。鼠标悬停在卡片上时平滑浮现右上角切换图标按钮（⇄），点击该按钮（或触控长按）呼出专属微型面板；悬停本身不自动弹出大面板，避免无意遮挡大屏。
 - _避免使用 (Avoid)_: Quick switcher, local popover, card tooltip, floating trigger
+
+**Card Subtitle (卡片副标题 / 卡片元信息)**:
+组件卡片头部右侧的可选元信息文本（默认依据是否存在对象槽位呈现“目标监控”或“数据总览”）。支持通过鼠标双击就地编辑或属性检查器配置，清空则在卡头上完全隐藏不占位。
+- _避免使用 (Avoid)_: Header badge, sub-heading, meta label, card tag
+
 
 **Single-Control Component Instance (单控件组件实例)**:
 当设计者直接向画布拖入原子控件时，由系统自动在底层包裹生成的轻量级单控件组件运行副本，使原子控件能够无缝继承组件的栅格排布与数据生命周期管理。
@@ -133,3 +138,31 @@ AI 实施成果报告（`walkthrough.md`）及关键验证记录在系统内部�
 **Global Time Series (全局时序序列)**:
 时序曲线控件中无需关联任何具体对象槽位、直接绑定全局非实体模式指标（如全港总船数、预警总数）的历史走势数据序列。
 - _避免使用 (Avoid)_: Macro line, system trend, non-entity series, port curve
+
+**KPI Emblem (指标卡片徽标)**:
+数值控件在 KPI 呈现风格下，位于大数字右侧作为半透明装饰的矢量小图标（支持内置货船、渔船、商船、告警预设，或自定义图片替换与隐藏关闭），增强大屏工业视觉质感。
+- _避免使用 (Avoid)_: Number bg, icon widget, kpi picture, stat decoration
+
+**In-situ Text Editing (就地文本编辑)**:
+在编辑态与显示态均支持的轻量编辑交互：鼠标双击大屏标题、卡片名称或静态文本即可原地激活输入框直接修改文字，按回车或失焦即时生效并进入未保存状态，无需强行打开重型属性侧边栏。
+- _避免使用 (Avoid)_: Quick rename, inline hack, local input, label patch
+
+**Card Boundary Clamping (卡片边界与文本截断)**:
+卡片标题与副标题在水平空间受限时保持单行弹性截断与省略号（`...`），结合浏览器悬停全文提示，保障卡头高度绝对稳定，防止标题换行挤压卡片内部核心监控图表。
+- _避免使用 (Avoid)_: Title wrap, multiline header, header overflow, card stretching
+
+**Smart Flip Popover (智能翻转浮层)**:
+交互浮层（如就地换船下拉面板）依据其在画布上的垂直绝对坐标（如 Y > 600px）自动判定并切换向下展开或向上翻转的自适应机制，彻底杜绝浮层超出大屏视口底边被物理裁切。
+- _避免使用 (Avoid)_: Auto dropdown, smart menu, adaptive modal, position flip
+
+**Emblem Isolation Layer (背景装饰隔离层)**:
+卡片内部将大尺寸半透明背景矢量徽标限制在独立的底层视口内进行圆角裁剪，使卡片主容器维持可见溢出（`overflow: visible`），确保外置拖拽手柄、缩放把手与弹出式浮层不受容器边缘裁切。
+- _避免使用 (Avoid)_: Icon clip hack, overflow patch, badge wrapper, card mask
+
+**Slot Placeholder (槽位占位符 / 对象占位符)**:
+组件模板设计中声明的抽象对象别名（如“本船”、“对比船”）。在组件工坊中仅作为数据挂载的抽象模具标识，不绑定任何具体实体，图例与标签以占位符名称呈现脱敏预览；投屏与运行时大屏才将具体船舶指派至该占位符。
+- _避免使用 (Avoid)_: Concrete entity, fixed ship binding, hardcoded slot, target instance
+
+**Dual-Axis Field Mapping (双轴字段映射 / 自由坐标轴)**:
+图表控件中 X 轴与 Y 轴的显式解耦映射机制。X 轴支持选择时间序列维度（滑动回溯窗口）或实体属性字段，Y 轴映射业务度量指标字段，支持多曲线各自绑定不同的数据字段或对象占位符。
+- _避免使用 (Avoid)_: Rigid timeline, locked-axis chart, fixed time series, single dimension plot
