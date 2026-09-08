@@ -54,6 +54,14 @@ AI 实施成果报告（`walkthrough.md`）及关键验证记录在系统内部�
 控件的内容填充模式。静态模式直接由设计者在编辑态录入固定文本或数值（用于标题、静态标牌、常量），动态模式则绑定对象槽位或全局数据字段由实时通信驱动。
 - _避免使用 (Avoid)_: Hardcoded text, fixed value mode, raw string, mock data
 
+**Static Indicator State (指示灯固定状态)**:
+指示灯在固定内容模式下由设计者指定的单一状态文字与颜色，直接决定显示内容，与动态绑定的状态颜色规则独立保存。
+- _避免使用 (Avoid)_: 固定匹配规则, 默认动态状态, 共享灯色
+
+**Dynamic Indicator Color Rules (指示灯动态状态颜色规则)**:
+指示灯在动态绑定模式下将数据状态值映射为显示颜色的一组规则，与指示灯固定状态独立保存；未匹配或缺值不推断为正常状态。
+- _避免使用 (Avoid)_: 固定颜色列表, 共用状态表, 静态匹配规则
+
 **Object Slot (对象槽位)**:
 组件内部声明的抽象实体参数插槽（如“对象1”、“对象2”），代表待注入的具体业务实体（如某艘特定船舶），供内部控件建立字段级绑定关系。
 - _避免使用 (Avoid)_: Entity parameter, object placeholder, data target, bind target
@@ -115,7 +123,7 @@ AI 实施成果报告（`walkthrough.md`）及关键验证记录在系统内部�
 - _避免使用 (Avoid)_: Quick switcher, local popover, card tooltip, floating trigger
 
 **Card Subtitle (卡片副标题 / 卡片元信息)**:
-组件卡片头部右侧的可选元信息文本（默认依据是否存在对象槽位呈现“目标监控”或“数据总览”）。支持通过鼠标双击就地编辑或属性检查器配置，清空则在卡头上完全隐藏不占位。
+组件卡片头部右侧由设计者明确填写的可选元信息文本，新组件模板默认留空，不依据对象槽位自动补字。组件实例可继承模板副标题或单独填写，显式清空则在卡头上完全隐藏不占位。
 - _避免使用 (Avoid)_: Header badge, sub-heading, meta label, card tag
 
 
@@ -170,4 +178,3 @@ AI 实施成果报告（`walkthrough.md`）及关键验证记录在系统内部�
 **Temporal Point Alignment Tolerance (时序点对对齐容差 / 航迹采样容差)**:
 在自由双轴映射（如经度 vs 纬度生成空间航迹线）场景下，两个不同属性字段在物联网通信中可能存在毫秒级物理采样抖动或异步增量上报。系统以时间戳为统一物理动力学基准，在设定的最大时间容差窗口（默认 5 秒 / 5000ms）内寻找最接近采样点合成坐标点对 `(x, y)`；超出容差则视作采样断流如实断开，坚决不跨时间段强行错配。
 - _避免使用 (Avoid)_: Point match tolerance, sync window, tick diff, time threshold
-
