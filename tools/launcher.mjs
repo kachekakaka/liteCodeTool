@@ -7,12 +7,12 @@ import { spawn } from 'node:child_process';
 const root = path.dirname(fileURLToPath(import.meta.url));
 const demo = !process.argv.includes('--live');
 const mode = demo ? 'demo' : 'live';
-const major = Number(process.versions.node.split('.')[0]);
-if (major < 22) {
-  console.error('需要 Node.js 22 或更新版本。当前版本：' + process.version);
+const [major, minor] = process.versions.node.split('.').map(Number);
+if (major < 22 || (major === 22 && minor < 16)) {
+  console.error('需要 Node.js 22.16 或更新版本。当前版本：' + process.version);
   process.exit(1);
 }
-const dataDir = path.resolve(process.env.DATA_DIR || path.join(root, 'liteCodeTool_datas'));
+const dataDir = path.resolve(process.env.DATA_DIR || path.join(root, '../liteCodeTool_datas'));
 const port = Number(process.env.PORT || (demo ? 8787 : 8788));
 if (!Number.isInteger(port) || port < 1024 || port > 65535) {
   console.error('端口须为 1024~65535 的整数。');

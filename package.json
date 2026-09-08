@@ -20,7 +20,9 @@
     "dev:live": "npm run dev",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "package:offline": "node tools/package-offline.mjs"
+    "package:offline": "node tools/package-offline.mjs",
+    "prepare:runtime": "node tools/prepare-runtime.mjs",
+    "package:release": "node tools/package-release.mjs"
   },
   "dependencies": {
     "vue": "^3.5.13",
@@ -31,6 +33,7 @@
     "@types/node": "^22.15.0",
     "@vitejs/plugin-vue": "^5.2.4",
     "prettier": "3.9.6",
+    "tar": "7.5.22",
     "typescript": "~5.8.3",
     "vite": "^6.3.5",
     "vue-tsc": "^2.2.10"
