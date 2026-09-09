@@ -347,16 +347,31 @@ export function duplicateInstance(): void {
  * @param instanceId - 需要改绑的组件实例标识。
  * @param slot - 模板内对象槽位标识。
  * @param id - 目标实体标识；空字符串表示解除指派，不请求底账。
+ * @param source - 可选指定的数据来源名称；空字符串表示全部或自动。
  * @returns 完成处理的 Promise，不携带业务返回值。
  */
-export async function retarget(instanceId: string, slot: string, id: string): Promise<void> {
+export async function retarget(
+  instanceId: string,
+  slot: string,
+  id: string,
+  source?: string,
+): Promise<void> {
   const instance = screenState.screen?.components.find((i) => i.instanceId === instanceId);
   const template = templateState.templates.find((t) => t.id === instance?.templateId);
   const type = template?.slots.find((s) => s.id === slot)?.schemaType;
   if (!instance || !type) return;
   checkpoint();
-  if (id) instance.slotBindings[slot] = id;
-  else delete instance.slotBindings[slot];
+  if (id) {
+    instance.slotBindings[slot] = id;
+  } else {
+    delete instance.slotBindings[slot];
+    if (instance.slotSourceBindings) delete instance.slotSourceBindings[slot];
+  }
+  if (source !== undefined) {
+    instance.slotSourceBindings ??= {};
+    if (source) instance.slotSourceBindings[slot] = source;
+    else delete instance.slotSourceBindings[slot];
+  }
   if (!id) return;
   try {
     const result = await request<Envelope>(
@@ -367,8 +382,26 @@ export async function retarget(instanceId: string, slot: string, id: string): Pr
     notify(`目标已切换；底账读取失败，缺失字段显示 --：${(e as Error).message}`, true);
   }
 }
+
 /**
- * 将各实例对象指派恢复到最近保存值，保留当前布局及控件修改。
+ * 切换指定实例槽位的物理数据来源（如 雷达1、遥测1 等），不改变目标实体指派。
+ *
+ * @param instanceId - 组件实例标识。
+ * @param slot - 模板内对象槽位标识。
+ * @param source - 数据源名称；空字符串表示全部或自动来源。
+ * @returns 无返回值（undefined）；结果通过状态更新体现。
+ */
+export function retargetSource(instanceId: string, slot: string, source: string): void {
+  const instance = screenState.screen?.components.find((i) => i.instanceId === instanceId);
+  if (!instance) return;
+  checkpoint();
+  instance.slotSourceBindings ??= {};
+  if (source) instance.slotSourceBindings[slot] = source;
+  else delete instance.slotSourceBindings[slot];
+}
+
+/**
+ * 将各实例对象指派与数据源恢复到最近保存值，保留当前布局及控件修改。
  *
  * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
  */
@@ -376,9 +409,10 @@ export function restoreBindings(): void {
   if (!screenState.screen || !screenState.savedScreen) return;
   checkpoint();
   const saved = JSON.parse(screenState.savedScreen) as ScreenConfig;
-  for (const i of screenState.screen.components)
-    i.slotBindings = clone(
-      saved.components.find((s) => s.instanceId === i.instanceId)?.slotBindings ?? {},
-    );
-  notify('已恢复最近成功保存的对象指派；布局和字段修改保持不变');
+  for (const i of screenState.screen.components) {
+    const orig = saved.components.find((s) => s.instanceId === i.instanceId);
+    i.slotBindings = clone(orig?.slotBindings ?? {});
+    i.slotSourceBindings = clone(orig?.slotSourceBindings ?? {});
+  }
+  notify('已恢复最近成功保存的对象指派与数据源；布局和字段修改保持不变');
 }

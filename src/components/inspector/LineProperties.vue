@@ -7,6 +7,7 @@ import {
   DEFAULT_CHART_COLORS,
   DEFAULT_GLOBAL_CHART_FIELD,
   DEFAULT_SLOT_CHART_FIELD,
+  extractUniqueTargets,
 } from '../../engine/core.ts';
 import { notify } from '../../stores/application.ts';
 import { useEditing } from '../../composables/useEditing.ts';
@@ -82,12 +83,18 @@ function bindTarget(target: 'slot' | 'global', key = '') {
 /**
  * 将输入转换为有限数值后更新指定控件属性。
  *
- * @param key - 数值属性名；lookbackMinutes 用分钟，gapSeconds、staleSeconds、autoPageSeconds 用秒，pageSize 为行数。
+ * @param key - 数值属性名；lookbackMinutes/lookbackSeconds、gapSeconds、staleSeconds、autoPageSeconds 用秒/分，pageSize 为行数。
  * @param event - 包含待转换字符串的输入事件。
  * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
  */
 function numberProp(
-  key: 'lookbackMinutes' | 'gapSeconds' | 'pageSize' | 'staleSeconds' | 'autoPageSeconds',
+  key:
+    | 'lookbackMinutes'
+    | 'lookbackSeconds'
+    | 'gapSeconds'
+    | 'pageSize'
+    | 'staleSeconds'
+    | 'autoPageSeconds',
   event: Event,
 ) {
   const n = Number(v(event));
@@ -108,6 +115,24 @@ const currentLineSchema = computed(() =>
 const currentLineNumericFields = computed(
   () => currentLineSchema.value?.fields.filter((f) => f.type === 'number') ?? [],
 );
+const previewTargetOptions = computed(() =>
+  extractUniqueTargets(dataState.store, lineSchemaType.value),
+);
+
+const availableSources = computed(() => {
+  const sources = new Set<string>();
+  const schemaSources = currentLineSchema.value?.fields.find((f) => f.key === 'source')?.options;
+  if (Array.isArray(schemaSources)) {
+    for (const s of schemaSources) if (s) sources.add(String(s));
+  }
+  const list = dataState.store.list(lineSchemaType.value);
+  for (const item of list) {
+    if (item.record.data.source) {
+      sources.add(String(item.record.data.source));
+    }
+  }
+  return Array.from(sources);
+});
 /**
  * 切换曲线数据模式，修复不兼容字段和槽位；全局模式统一回到时间横轴。
  *
@@ -290,13 +315,13 @@ function cancelRenameSlot() {
  * 修改指定曲线配置；切换来源类型时整体重建寻址信息并保留颜色。
  *
  * @param index - 曲线下标，从 0 开始，应对应已有曲线。
- * @param key - 待改字段：target、slotId、schemaType、field 或 color。
+ * @param key - 待改字段：target、slotId、schemaType、field、color、yAxis 或 filterSource。
  * @param event - 包含新值的表单事件。
  * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
  */
 function seriesChange(
   index: number,
-  key: 'target' | 'slotId' | 'schemaType' | 'field' | 'color',
+  key: 'target' | 'slotId' | 'schemaType' | 'field' | 'color' | 'yAxis' | 'filterSource',
   event: Event,
 ) {
   const series = clone(displayControl.value?.props.series ?? []);
@@ -324,7 +349,7 @@ function seriesChange(
       };
     }
   } else {
-    series[index][key] = val;
+    series[index][key] = val as any;
   }
   props({ series });
 }
@@ -433,21 +458,57 @@ function seriesRemove(index: number) {
       </div>
 
       <template v-if="(displayControl.props.xAxisMode ?? 'time') === 'time'">
-        <label
-          >时间跨度<select
-            aria-label="时间跨度"
-            :value="displayControl.props.lookbackMinutes ?? 20"
-            @change="numberProp('lookbackMinutes', $event)"
-          >
-            <option
-              v-for="n in [1, 15, 20, 30, 60]"
-              :key="n"
-              :value="n"
+        <div style="display: flex; gap: 8px; align-items: flex-end">
+          <label style="flex: 1">
+            时间跨度单位
+            <select
+              aria-label="时间跨度单位"
+              :value="displayControl.props.lookbackUnit || 'minute'"
+              @change="props({ lookbackUnit: v($event) as 'minute' | 'second' })"
             >
-              {{ n }} 分钟{{ n === 1 ? '（短窗口调试）' : '' }}
-            </option>
-          </select></label
-        >
+              <option value="minute">分钟</option>
+              <option value="second">秒（短周期自适应）</option>
+            </select>
+          </label>
+          <label
+            v-if="(displayControl.props.lookbackUnit || 'minute') === 'minute'"
+            style="flex: 1"
+          >
+            回溯时间（分钟）
+            <select
+              aria-label="回溯时间（分钟）"
+              :value="displayControl.props.lookbackMinutes ?? 20"
+              @change="numberProp('lookbackMinutes', $event)"
+            >
+              <option
+                v-for="n in [1, 2, 5, 15, 20, 30, 60]"
+                :key="n"
+                :value="n"
+              >
+                {{ n }} 分钟{{ n <= 2 ? '（短周期）' : '' }}
+              </option>
+            </select>
+          </label>
+          <label
+            v-else
+            style="flex: 1"
+          >
+            回溯时间（秒）
+            <select
+              aria-label="回溯时间（秒）"
+              :value="displayControl.props.lookbackSeconds ?? 60"
+              @change="numberProp('lookbackSeconds', $event)"
+            >
+              <option
+                v-for="s in [10, 15, 30, 60, 90, 120, 180, 300, 600]"
+                :key="s"
+                :value="s"
+              >
+                {{ s }} 秒
+              </option>
+            </select>
+          </label>
+        </div>
         <label
           >断线间隔（秒）<input
             type="number"
@@ -476,6 +537,25 @@ function seriesRemove(index: number) {
         <p class="field-help">
           X 与 Y 轴按采样时间先后顺序顺次连线，各对象实时呈现各自航迹；末端发光高亮最新位置。
         </p>
+      </template>
+
+      <template v-if="currentLineSchema?.isEntity">
+        <h4>工坊预览目标</h4>
+        <select
+          aria-label="工坊预览目标"
+          :value="displayControl.props.workshopPreviewTarget || ''"
+          @change="props({ workshopPreviewTarget: v($event) || undefined })"
+        >
+          <option value="">默认（首个可用目标）</option>
+          <option
+            v-for="item in previewTargetOptions"
+            :key="item.id"
+            :value="item.id"
+          >
+            {{ item.label }}
+          </option>
+        </select>
+        <p class="field-help">仅供工坊内试看时序波形与传感器测控对比，不会固化进模板定义。</p>
       </template>
 
       <h4>曲线配置 (Y 轴度量)</h4>
@@ -610,6 +690,39 @@ function seriesRemove(index: number) {
             </select>
           </label>
         </template>
+        <div style="display: flex; gap: 8px; align-items: center; margin-top: 4px">
+          <label style="font-size: 11px; color: #739dbb; flex: 1; margin: 0">
+            Y 轴向
+            <select
+              aria-label="Y 轴向"
+              :value="series.yAxis || 'left'"
+              @change="seriesChange(index, 'yAxis', $event)"
+            >
+              <option value="left">左 Y 轴（主轴）</option>
+              <option value="right">右 Y 轴（副轴）</option>
+            </select>
+          </label>
+          <label
+            v-if="currentLineSchema?.isEntity"
+            style="font-size: 11px; color: #739dbb; flex: 1; margin: 0"
+          >
+            数据来源过滤
+            <select
+              aria-label="数据来源过滤"
+              :value="series.filterSource || ''"
+              @change="seriesChange(index, 'filterSource', $event)"
+            >
+              <option value="">全部来源</option>
+              <option
+                v-for="src in availableSources"
+                :key="src"
+                :value="src"
+              >
+                {{ src }}
+              </option>
+            </select>
+          </label>
+        </div>
         <label style="font-size: 11px; color: #739dbb; margin: 2px 0 0"
           >曲线颜色
           <input

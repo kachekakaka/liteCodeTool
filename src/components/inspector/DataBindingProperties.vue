@@ -39,7 +39,7 @@ const fields = computed(
     ) ?? [],
 );
 const scalar = computed(
-  () => !!displayControl.value && !['table', 'line'].includes(displayControl.value.type),
+  () => !!displayControl.value && !['table', 'line', 'stream'].includes(displayControl.value.type),
 );
 const resolved = computed(() =>
   selectedControl.value &&

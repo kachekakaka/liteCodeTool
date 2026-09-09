@@ -38,6 +38,53 @@ export const schemas = [
       { key: 'warning_count', name: '异常告警', type: 'number', unit: '起', precision: 0 },
     ],
   },
+  {
+    type: 'projectile',
+    name: '飞行目标',
+    isEntity: true,
+    idField: 'batch_no',
+    fields: [
+      { key: 'batch_no', name: '批号', type: 'string' },
+      {
+        key: 'source',
+        name: '数据源',
+        type: 'enum',
+        options: [
+          '雷达1',
+          '雷达2',
+          '雷达3',
+          '雷达4',
+          '遥测1',
+          '遥测2',
+          '光测1',
+          '光测2',
+        ],
+      },
+      { key: 'altitude', name: '高度', type: 'number', unit: 'km', precision: 2 },
+      { key: 'speed', name: '速度', type: 'number', unit: 'km/h', precision: 0 },
+      { key: 'heading', name: '航向', type: 'number', unit: '°', precision: 0 },
+      { key: 'lon', name: '经度', type: 'number', unit: '°E', precision: 6 },
+      { key: 'lat', name: '纬度', type: 'number', unit: '°N', precision: 6 },
+      {
+        key: 'status',
+        name: '状态',
+        type: 'enum',
+        options: ['正常', '跟踪', '丢失', '拦截'],
+      },
+      { key: 'update_time', name: '最新报位时间', type: 'datetime' },
+    ],
+  },
+  {
+    type: 'event_log',
+    name: '滚动消息流',
+    isEntity: false,
+    fields: [
+      { key: 'time', name: '时间', type: 'datetime' },
+      { key: 'level', name: '级别', type: 'enum', options: ['info', 'warn', 'error'] },
+      { key: 'source', name: '来源', type: 'string' },
+      { key: 'content', name: '内容', type: 'string' },
+    ],
+  },
 ];
 /**
  * 生成默认船舶对象槽位，ID 和标签从 1 开始编号。
@@ -295,13 +342,24 @@ export const templates = [
         filterValue: '商船',
         pageSize: 4,
         autoPageSeconds: 8,
+        tableColumnRules: [
+          {
+            field: 'status',
+            rules: [
+              { value: '在航', color: '#22C55E' },
+              { value: '巡航', color: '#06B6D4' },
+              { value: '作业', color: '#F59E0B' },
+              { value: '告警', color: '#EF4444' },
+            ],
+          },
+        ],
       }),
     ],
   },
 ];
-for (const type of ['text', 'number', 'time', 'light', 'image', 'table', 'line']) {
-  const dimensions = ['table', 'line'].includes(type)
-    ? { width: 600, height: 280 }
+for (const type of ['text', 'number', 'time', 'light', 'image', 'table', 'line', 'stream']) {
+  const dimensions = ['table', 'line', 'stream'].includes(type)
+    ? { width: 560, height: 260 }
     : { width: 320, height: 150 };
   const props =
     type === 'line'
@@ -310,18 +368,36 @@ for (const type of ['text', 'number', 'time', 'light', 'image', 'table', 'line']
           lookbackMinutes: 20,
           series: [{ slotId: 'slot_1', field: 'speed', color: '#22D3EE' }],
         }
-      : type === 'table'
+      : type === 'stream'
         ? {
             sourceMode: 'dynamic',
-            schemaType: 'vessel',
-            columns: ['vessel_name', 'speed', 'status'],
-            pageSize: 4,
+            schemaType: 'event_log',
+            streamMaxItems: 50,
+            streamAutoScroll: true,
           }
-        : type === 'image'
-          ? { sourceMode: 'static', imageType: 'radar' }
-          : type === 'time'
-            ? { sourceMode: 'static', clock: true }
-            : { sourceMode: 'static', staticValue: type === 'number' ? 0 : '请输入内容' };
+        : type === 'table'
+          ? {
+              sourceMode: 'dynamic',
+              schemaType: 'vessel',
+              columns: ['vessel_name', 'speed', 'status'],
+              pageSize: 4,
+              tableColumnRules: [
+                {
+                  field: 'status',
+                  rules: [
+                    { value: '在航', color: '#22C55E' },
+                    { value: '巡航', color: '#06B6D4' },
+                    { value: '作业', color: '#F59E0B' },
+                    { value: '告警', color: '#EF4444' },
+                  ],
+                },
+              ],
+            }
+          : type === 'image'
+            ? { sourceMode: 'static', imageType: 'radar' }
+            : type === 'time'
+              ? { sourceMode: 'static', clock: true }
+              : { sourceMode: 'static', staticValue: type === 'number' ? 0 : '请输入内容' };
   templates.push({
     id: `atom_${type}`,
     name: {
@@ -332,11 +408,12 @@ for (const type of ['text', 'number', 'time', 'light', 'image', 'table', 'line']
       image: '图片／动图',
       table: '数据表格',
       line: '时序曲线',
+      stream: '滚动消息流',
     }[type],
     category: '原子控件',
     layout: dimensions,
     showHeader: false,
-    slots: !['image', 'table'].includes(type) ? slots(1) : [],
+    slots: !['image', 'table', 'stream'].includes(type) ? slots(1) : [],
     controls: [
       control('content', type, 12, 12, dimensions.width - 24, dimensions.height - 24, 28, props),
     ],
@@ -451,6 +528,81 @@ export function demoEnvelopes(now = Date.now()) {
     type: 'port_stats',
     timestamp: now,
     data: { total_vessels: 8, cargo_count: 4, fishing_count: 2, warning_count: 1 },
+  });
+  const sampleSources = [
+    '雷达1',
+    '雷达2',
+    '雷达3',
+    '雷达4',
+    '遥测1',
+    '遥测2',
+    '光测1',
+    '光测2',
+  ];
+  const baseAltitudes = [
+    48.5, 52.3, 61.0, 78.4, 85.2, 92.6, 35.8, 42.1, 68.7, 75.3, 88.9, 105.4,
+  ];
+  const baseSpeeds = [
+    2450, 2600, 3100, 3850, 4200, 4550, 1850, 2100, 3400, 3750, 4300, 4950,
+  ];
+  const sampleStatuses = [
+    '正常',
+    '跟踪',
+    '跟踪',
+    '跟踪',
+    '正常',
+    '拦截',
+    '跟踪',
+    '正常',
+    '跟踪',
+    '跟踪',
+    '正常',
+    '跟踪',
+  ];
+
+  for (let i = 1; i <= 12; i++) {
+    const batch_no = `P-${100 + i}`;
+    const targetBaseAlt = baseAltitudes[i - 1];
+    const targetBaseSpd = baseSpeeds[i - 1];
+    const targetStatus = sampleStatuses[i - 1];
+
+    for (let sIdx = 0; sIdx < sampleSources.length; sIdx++) {
+      const src = sampleSources[sIdx];
+      const isPrimary = sIdx === 0;
+      const id = isPrimary ? batch_no : `${batch_no}_src${sIdx + 1}`;
+      const altOffset = isPrimary ? 0 : Number(((sIdx * 0.14) - 0.28).toFixed(2));
+      const spdOffset = isPrimary ? 0 : Math.round((sIdx * 12) - 25);
+      const headingOffset = isPrimary ? 0 : (sIdx * 2);
+
+      result.push({
+        type: 'projectile',
+        id,
+        timestamp: now,
+        data: {
+          batch_no,
+          source: src,
+          altitude: Math.max(1.0, Number((targetBaseAlt + altOffset).toFixed(2))),
+          speed: Math.max(100, Math.round(targetBaseSpd + spdOffset)),
+          heading: (42 + i * 27 + headingOffset) % 360,
+          lon: Number((121.5 + i * 0.08 + (isPrimary ? 0 : sIdx * 0.002)).toFixed(6)),
+          lat: Number((31.3 + i * 0.06 + (isPrimary ? 0 : sIdx * 0.002)).toFixed(6)),
+          status: targetStatus,
+          update_time: new Date(now).toISOString(),
+        },
+      });
+    }
+  }
+
+  result.push({
+    type: 'event_log',
+    id: '_global',
+    timestamp: now,
+    data: {
+      time: new Date(now).toISOString(),
+      level: 'info',
+      source: '雷达1',
+      content: '捕获空中机动飞行目标 P-101，初始高度 48.5km，速度 2450km/h',
+    },
   });
   return result;
 }

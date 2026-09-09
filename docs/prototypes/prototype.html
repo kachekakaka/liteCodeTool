@@ -921,7 +921,7 @@
             id="tab-btn-workshop"
             onclick="activateTab('workshop')"
           >
-            <span>🧩</span> 组件工坊 (7大原子控件)
+            <span>🧩</span> 组件工坊 (8大原子控件)
           </button>
           <button
             class="hub-tab-btn"
@@ -1717,12 +1717,13 @@
                     </div>
 
                     <!-- 局部就地微型切船气泡 -->
+                    <!-- 局部就地双维度切目标与切来源气泡 -->
                     <div
                       class="insitu-popover"
                       id="popover_inst_02"
                     >
-                      <div style="font-size: 11px; color: var(--lc-cyan); font-weight: 700">
-                        就地快速切换此卡片实体:
+                      <div style="font-size: 11px; color: var(--lc-cyan); font-weight: 700; border-bottom: 1px solid var(--lc-border-subtle); padding-bottom: 4px;">
+                        🎯 目标重定向 (Target):
                       </div>
                       <div
                         class="popover-item"
@@ -1744,16 +1745,26 @@
                       >
                         <span>浙岱渔0455</span> <span style="color: var(--lc-warning)">● 作业</span>
                       </div>
+                      <div style="font-size: 11px; color: var(--lc-cyan); font-weight: 700; border-bottom: 1px solid var(--lc-border-subtle); padding-bottom: 4px; margin-top: 4px;">
+                        📡 传感器来源 (Source 权威):
+                      </div>
+                      <div style="display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 0;">
+                        <span class="insitu-tag active" style="font-size: 10px; padding: 2px 6px; border-radius: 3px; background: rgba(34,211,238,0.2); border: 1px solid var(--lc-cyan); color: var(--lc-cyan); cursor: pointer;">雷达1 (默认)</span>
+                        <span class="insitu-tag" style="font-size: 10px; padding: 2px 6px; border-radius: 3px; background: rgba(255,255,255,0.05); border: 1px solid var(--lc-border-subtle); color: var(--lc-secondary); cursor: pointer;">雷达2</span>
+                        <span class="insitu-tag" style="font-size: 10px; padding: 2px 6px; border-radius: 3px; background: rgba(255,255,255,0.05); border: 1px solid var(--lc-border-subtle); color: var(--lc-secondary); cursor: pointer;">遥测1</span>
+                        <span class="insitu-tag" style="font-size: 10px; padding: 2px 6px; border-radius: 3px; background: rgba(255,255,255,0.05); border: 1px solid var(--lc-border-subtle); color: var(--lc-secondary); cursor: pointer;">光测1</span>
+                      </div>
                       <div
                         style="
                           font-size: 10px;
                           color: var(--lc-muted);
                           text-align: right;
                           cursor: pointer;
+                          margin-top: 4px;
                         "
                         onclick="openMonitorDrawer()"
                       >
-                        更多... 打开全局抽屉
+                        更多目标... 打开全局抽屉
                       </div>
                     </div>
 
@@ -2627,7 +2638,7 @@
         >
           <aside class="side-drawer-left">
             <div class="drawer-title-row">
-              <span>🧰 7 大核心原子控件库</span>
+              <span>🧰 8 大核心原子控件库</span>
             </div>
             <div class="drawer-scroll-list">
               <div
@@ -2666,13 +2677,22 @@
               <div class="asset-item-box">
                 <div class="asset-item-name">📊 表格 (TableBox)</div>
                 <div class="asset-item-desc">
-                  多列滚动表格，支持空值防穿、真实行高与停更时效置灰弱化。
+                  多列滚动表格，支持空值防穿、真实行高、停更时效置灰及单元格历史走势微图。
                 </div>
               </div>
               <div class="asset-item-box">
                 <div class="asset-item-name">📈 曲线 (LineChart)</div>
                 <div class="asset-item-desc">
-                  矢量 SVG 时序折线，支持多槽位对比与全局宏观指标大盘无槽位切换。
+                  矢量 SVG 时序折线，支持左右双 Y 轴度量、短周期秒级自适应与全局宏观指标对比。
+                </div>
+              </div>
+              <div
+                class="asset-item-box"
+                style="border-left: 3px solid var(--lc-blue)"
+              >
+                <div class="asset-item-name">🌊 消息流 (StreamBox)</div>
+                <div class="asset-item-desc">
+                  实时流式报文日志看板，支持等级高亮着色、来源标识徽章与平滑翻滚置底。
                 </div>
               </div>
             </div>
@@ -2685,12 +2705,15 @@
               align-items: center;
               justify-content: center;
               position: relative;
+              overflow-y: auto;
+              padding: 40px 20px 20px;
+              gap: 24px;
             "
           >
             <div
               style="
                 position: absolute;
-                top: 18px;
+                top: 14px;
                 font-size: 13px;
                 color: var(--lc-secondary);
                 display: flex;
@@ -2700,7 +2723,7 @@
             >
               <span
                 >正在编辑组件模板:
-                <strong style="color: var(--lc-cyan)">双船会遇监管卡片模板 (Template)</strong></span
+                <strong style="color: var(--lc-cyan)">多维度测控与日志大屏模板库</strong></span
               >
               <button
                 class="btn-ui btn-ui-primary"
@@ -2710,9 +2733,10 @@
               </button>
             </div>
 
+            <!-- 卡片 1: 槽位卡片 -->
             <div
               class="lc-cut-card"
-              style="width: 480px; padding: 20px"
+              style="width: 420px; padding: 20px"
             >
               <div
                 class="lc-card-head"
@@ -2726,6 +2750,36 @@
                 <div>• 控件 2: {对象1.speed} 节 (数值框)</div>
                 <div>• 控件 3: {对象2.vessel_name} (文本框)</div>
                 <div>• 控件 4: {对象2.speed} 节 (数值框)</div>
+              </div>
+            </div>
+
+            <!-- 卡片 2: 消息流与微图走势模板 -->
+            <div
+              class="lc-cut-card"
+              style="width: 440px; padding: 20px"
+            >
+              <div
+                class="lc-card-head"
+                style="margin: -20px -20px 16px -20px"
+              >
+                <div class="lc-card-title">🌊 [模板] 消息流与时序大盘</div>
+                <span class="asset-badge" style="border-color: var(--lc-cyan); color: var(--lc-cyan)">新原子扩展</span>
+              </div>
+              <div style="font-size: 12px; color: var(--lc-secondary); line-height: 1.6; display: flex; flex-direction: column; gap: 8px;">
+                <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--lc-border-subtle); border-radius: 4px; padding: 8px;">
+                  <div style="color: var(--lc-cyan); font-weight: 600; font-size: 11px; margin-bottom: 4px;">🌊 消息流 (StreamControl) 预览</div>
+                  <div style="font-family: var(--font-mono); font-size: 11px; display: flex; flex-direction: column; gap: 3px;">
+                    <div><span style="color: var(--lc-alert)">[ALERT]</span> 17:08:12 弹目标 P-105 航速异常突增 (+12.4节)</div>
+                    <div><span style="color: var(--lc-ok)">[INFO]</span> 17:08:15 传感器【雷达3】建链成功 (质量 98%)</div>
+                    <div><span style="color: var(--lc-warning)">[WARN]</span> 17:08:19 传感器【光测2】信噪比接近下限阈值</div>
+                  </div>
+                </div>
+                <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--lc-border-subtle); border-radius: 4px; padding: 8px;">
+                  <div style="color: var(--lc-cyan); font-weight: 600; font-size: 11px; margin-bottom: 4px;">📈 曲线 (LineChart) 双 Y 轴与秒级窗口</div>
+                  <div style="font-size: 11px; color: var(--lc-muted);">
+                    左轴高度(m) + 右轴速度(m/s) · 支持 10s~600s 自适应切片，点位绝不外溢
+                  </div>
+                </div>
               </div>
             </div>
           </div>

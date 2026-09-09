@@ -11,7 +11,16 @@ import type {
   ScreenConfig,
 } from '../types.ts';
 
-export const controlTypes = ['text', 'number', 'time', 'light', 'table', 'line', 'image'] as const;
+export const controlTypes = [
+  'text',
+  'number',
+  'time',
+  'light',
+  'table',
+  'line',
+  'image',
+  'stream',
+] as const;
 export const DEFAULT_CHART_COLORS = ['#22D3EE', '#25D8AE', '#FFBF47', '#38ACD1'] as const;
 export const DEFAULT_GLOBAL_CHART_FIELD = 'total_vessels';
 export const DEFAULT_SLOT_CHART_FIELD = 'speed';
@@ -140,11 +149,12 @@ export function isRecordStale(
  *
  * @param points - 待筛选历史点，不会原地修改。
  * @param now - 窗口截止时间戳，单位毫秒。
- * @param minutes - 窗口长度，单位分钟；实际约束到 1～60。
+ * @param minutes - 窗口长度，单位分钟；支持短周期秒级（最小 5 秒，即 5/60 分钟），最大 60 分钟。
  * @returns 位于窗口起止时间内的有序点集，包含边界时刻。
  */
 export function inWindow(points: Point[], now: number, minutes: number): Point[] {
-  const cutoff = now - clamp(minutes, 1, 60) * 60_000;
+  const safeMinutes = clamp(minutes, 5 / 60, 60);
+  const cutoff = now - safeMinutes * 60_000;
   return points
     .filter((p) => p.timestamp >= cutoff && p.timestamp <= now)
     .sort((a, b) => a.timestamp - b.timestamp);
@@ -249,6 +259,68 @@ export function formatScalar(value: unknown, precision?: number | null, datetime
 }
 
 /**
+ * 根据数据模式、实体标识与可选数据源获取匹配的实体记录。
+ *
+ * @param store - 实体数据池。
+ * @param type - 数据模式标识。
+ * @param id - 实体标识（如批号或 MMSI）。
+ * @param source - 可选物理数据来源（如 雷达1、遥测1 等）。
+ * @returns 匹配到的实体记录，未匹配时返回 undefined。
+ */
+export function resolveEntityRecord(
+  store: EntityStore,
+  type: string | undefined,
+  id: string | undefined,
+  source?: string,
+): EntityRecord | undefined {
+  if (!type || !id) return undefined;
+  const direct = store.get(type, id);
+  if (!source) {
+    return direct;
+  }
+  if (direct && direct.data.source === source) {
+    return direct;
+  }
+  // 若指定了具体数据源，在实体列表中查找同批号/标识且来源相符的记录；未命中严格返回 undefined 保证来源权威
+  const matched = store.list(type).find(
+    (item) =>
+      (item.id === id ||
+        item.record.data.batch_no === id ||
+        item.record.data.vessel_name === id ||
+        item.record.data.mmsi === id ||
+        item.id.startsWith(`${id}_`)) &&
+      item.record.data.source === source,
+  );
+  return matched ? matched.record : undefined;
+}
+
+/**
+ * 从实体池中提取指定模式排重后的目标实体选项列表。
+ *
+ * @param store - 实体池存储实例。
+ * @param schemaType - 数据模式标识。
+ * @returns 包含目标标识与可读文本的数组。
+ */
+export function extractUniqueTargets(
+  store: EntityStore,
+  schemaType: string,
+): Array<{ id: string; label: string }> {
+  const items = store.list(schemaType);
+  const seen = new Set<string>();
+  const result: Array<{ id: string; label: string }> = [];
+  for (const item of items) {
+    const targetId = String(item.record.data.batch_no || item.id);
+    if (!seen.has(targetId)) {
+      seen.add(targetId);
+      const name = item.record.data.vessel_name;
+      const label = name && name !== targetId ? `${name} · ${targetId}` : targetId;
+      result.push({ id: targetId, label });
+    }
+  }
+  return result;
+}
+
+/**
  * 解析控件最终显示值，合并实例覆盖、槽位绑定、字段元信息与时效状态。
  *
  * @param control - 模板中的原始控件。
@@ -281,13 +353,16 @@ export function resolveValue(
       stale: false,
     };
   }
+
   const type = sourceType(c.binding, template);
   const field = schemas
     .find((s) => s.type === type)
     ?.fields.find((f) => f.key === c.binding?.field);
   const id =
     c.binding?.target === 'global' ? '_global' : instance.slotBindings[c.binding?.slotId ?? ''];
-  const record = id ? store.get(type, id) : undefined;
+  const slotSource =
+    c.binding?.target === 'global' ? undefined : instance.slotSourceBindings?.[c.binding?.slotId ?? ''];
+  const record = id ? resolveEntityRecord(store, type, id, slotSource) : undefined;
   const raw = record?.data[c.binding?.field ?? ''];
   const timestamp = record?.timestamps[c.binding?.field ?? ''] ?? null;
   const label =
@@ -455,6 +530,33 @@ function controls(template: ComponentTemplate, schemas: Schema[]): void {
       (!Array.isArray(c.props.series) || c.props.series.length > 8)
     )
       throw new Error('单个图表最多配置 8 条曲线');
+    if (c.props.tableColumnRules !== undefined) {
+      if (!Array.isArray(c.props.tableColumnRules) || c.props.tableColumnRules.length > 20) {
+        throw new Error('表格列规则数量无效');
+      }
+      for (const cr of c.props.tableColumnRules) {
+        if (!cr || typeof cr.field !== 'string' || !Array.isArray(cr.rules) || cr.rules.length > 30) {
+          throw new Error('表格列规则格式无效');
+        }
+        if (cr.rules.some((r) => !r || !/^#[0-9a-fA-F]{6}$/.test(r.color))) {
+          throw new Error('表格列规则颜色格式无效');
+        }
+      }
+    }
+    if (
+      c.props.streamMaxItems !== undefined &&
+      (!Number.isInteger(c.props.streamMaxItems) ||
+        c.props.streamMaxItems < 5 ||
+        c.props.streamMaxItems > 500)
+    ) {
+      throw new Error('消息流最大条数应为 5~500 的整数');
+    }
+    if (c.type === 'stream') {
+      if (c.props.schemaType) {
+        const schema = schemas.find((s) => s.type === c.props.schemaType);
+        if (!schema) throw new Error('消息流数据模式无效');
+      }
+    }
     if (c.type === 'table') {
       const schema = schemas.find((s) => s.type === c.props.schemaType && s.isEntity);
       if (
@@ -466,6 +568,18 @@ function controls(template: ComponentTemplate, schemas: Schema[]): void {
         throw new Error('表格的数据模式、列或过滤字段无效');
     }
     if (c.type === 'line') {
+      if (
+        c.props.lookbackUnit !== undefined &&
+        !['second', 'minute'].includes(c.props.lookbackUnit)
+      )
+        throw new Error('曲线时间单位无效');
+      if (
+        c.props.lookbackSeconds !== undefined &&
+        (!finite(c.props.lookbackSeconds) ||
+          c.props.lookbackSeconds < 10 ||
+          c.props.lookbackSeconds > 600)
+      )
+        throw new Error('曲线秒级时间窗口应为 10~600 秒');
       if (
         c.props.lookbackMinutes !== undefined &&
         (!finite(c.props.lookbackMinutes) ||
@@ -485,8 +599,21 @@ function controls(template: ComponentTemplate, schemas: Schema[]): void {
         (!validId(c.props.xAxisSlotId) || !template.slots.some((s) => s.id === c.props.xAxisSlotId))
       )
         throw new Error('X 轴槽位无效');
+      if (
+        c.props.workshopPreviewTarget !== undefined &&
+        (typeof c.props.workshopPreviewTarget !== 'string' ||
+          c.props.workshopPreviewTarget.length > 80)
+      )
+        throw new Error('工坊预览目标标识无效');
       if (c.props.series !== undefined && Array.isArray(c.props.series)) {
         for (const s of c.props.series) {
+          if (s.yAxis !== undefined && !['left', 'right'].includes(s.yAxis))
+            throw new Error('曲线 Y 轴归属无效');
+          if (
+            s.filterSource !== undefined &&
+            (typeof s.filterSource !== 'string' || s.filterSource.length > 50)
+          )
+            throw new Error('曲线数据来源过滤无效');
           const isGlobal = s.target === 'global' || c.binding?.target === 'global';
           if (isGlobal) {
             const schemaType = s.schemaType || c.binding?.schemaType || 'port_stats';
@@ -584,6 +711,7 @@ export const CONTROL_TYPE_LABELS: Record<string, string> = {
   table: '表格',
   line: '折线图',
   image: '图片',
+  stream: '消息流',
 };
 
 /**
@@ -661,6 +789,9 @@ export function formatControlSummary(control: Control): string {
       if (props.imageType === 'radar') return '雷达扫描';
       if (props.imageType === 'sonar') return '声纳波纹';
       return '自定义图片';
+    }
+    case 'stream': {
+      return props.schemaType ? `消息流 (${props.schemaType})` : '滚动消息流';
     }
     default:
       return control.type;
@@ -794,6 +925,20 @@ export function validateScreen(
     for (const [slot, id] of Object.entries(i.slotBindings))
       if (!template.slots.some((s) => s.id === slot) || !validId(id))
         throw new Error('槽位指派无效');
+    if (i.slotSourceBindings !== undefined) {
+      if (
+        typeof i.slotSourceBindings !== 'object' ||
+        i.slotSourceBindings === null ||
+        Array.isArray(i.slotSourceBindings)
+      )
+        throw new Error('槽位数据源指派无效');
+      for (const [slot, src] of Object.entries(i.slotSourceBindings)) {
+        if (!template.slots.some((s) => s.id === slot))
+          throw new Error('槽位数据源指派了不存在的槽位');
+        if (typeof src !== 'string' || src.length > 80)
+          throw new Error('槽位数据源标识无效');
+      }
+    }
     for (const id of Object.keys(i.controlOverrides))
       if (!template.controls.some((c) => c.id === id)) throw new Error('覆盖项引用了不存在的控件');
     controls(
@@ -801,4 +946,200 @@ export function validateScreen(
       schemas,
     );
   }
+}
+
+/**
+ * 评估状态颜色规则，支持数值区间（如 >30、<=10、10..20）、比较符号以及标量全等匹配。
+ *
+ * @param value - 待判定的原始标量值。
+ * @param rules - 有序颜色规则列表，按自上而下顺序短路匹配。
+ * @returns 命中的六位十六进制颜色；未匹配或无值时返回 null。
+ */
+export function evaluateColorRule(
+  value: unknown,
+  rules: { value: unknown; color: string }[] | undefined,
+): string | null {
+  if (value === null || value === undefined || !rules || !rules.length) return null;
+
+  const numVal =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string' && value.trim() !== '' && !Number.isNaN(Number(value))
+        ? Number(value)
+        : null;
+
+  for (const rule of rules) {
+    if (rule.value === null || rule.value === undefined) continue;
+    const ruleStr = String(rule.value).trim();
+
+    // 1. 范围语法 min..max (如 10..20, -5..5)
+    if (ruleStr.includes('..')) {
+      const parts = ruleStr.split('..').map((p) => p.trim());
+      if (parts.length === 2) {
+        const min = Number(parts[0]);
+        const max = Number(parts[1]);
+        if (numVal !== null && Number.isFinite(min) && Number.isFinite(max)) {
+          if (numVal >= min && numVal <= max) return rule.color;
+          continue;
+        }
+      }
+    }
+
+    // 2. 比较运算符 (如 >30, >=10, <5, <=0)
+    const matchOp = ruleStr.match(/^([><]=?)\s*(-?\d+(?:\.\d+)?)$/);
+    if (matchOp) {
+      const op = matchOp[1];
+      const target = Number(matchOp[2]);
+      if (numVal !== null && Number.isFinite(target)) {
+        let matched = false;
+        if (op === '>') matched = numVal > target;
+        else if (op === '>=') matched = numVal >= target;
+        else if (op === '<') matched = numVal < target;
+        else if (op === '<=') matched = numVal <= target;
+        if (matched) return rule.color;
+        continue;
+      }
+    }
+
+    // 3. 标量精确匹配
+    if (value === rule.value || String(value) === ruleStr) {
+      return rule.color;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * 根据时间窗口总跨度格式化时间刻度标签。
+ *
+ * @param time - 时间戳，单位毫秒。
+ * @param durationMs - 窗口总时长，单位毫秒。
+ * @returns 跨度不超过 3 分钟时显示 HH:mm:ss，否则显示 HH:mm。
+ */
+export function formatAdaptiveTimeTick(time: number, durationMs: number): string {
+  const d = new Date(time);
+  if (durationMs <= 180000) {
+    return d.toLocaleTimeString('zh-CN', {
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+  }
+  return d.toLocaleTimeString('zh-CN', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+/**
+ * 坐标轴值域极值接口。
+ */
+export interface AxisExtents {
+  min: number;
+  max: number;
+}
+
+/**
+ * 计算折线图坐标轴的自适应上下边界值域。
+ *
+ * @param values - 原始数值数组，允许包含 null 或 undefined。
+ * @param isFieldAxis - 是否为自由双轴航迹模式；true 时紧凑保留 8% 边距，false 时按 5 步长规整化。
+ * @returns 规范化的坐标轴极值对象 { min, max }。
+ */
+export function calculateExtents(
+  values: (number | null | undefined)[],
+  isFieldAxis = false,
+): AxisExtents {
+  const validVals = values.filter(
+    (v): v is number => v !== null && v !== undefined && Number.isFinite(v),
+  );
+  if (!validVals.length) return { min: 0, max: 10 };
+
+  const rawMin = Math.min(...validVals);
+  const rawMax = Math.max(...validVals);
+  const span = rawMax - rawMin || Math.abs(rawMax) * 0.1 || (isFieldAxis ? 1 : 5);
+
+  if (isFieldAxis) {
+    return {
+      min: rawMin - span * 0.08,
+      max: rawMax + span * 0.08,
+    };
+  }
+
+  const maxVal = Math.ceil((rawMax + span * 0.08) / 5) * 5;
+  const rawFloor = Math.floor((rawMin - span * 0.08) / 5) * 5;
+  const minVal = Object.is(rawFloor, -0) || rawFloor >= 0 ? 0 : Math.min(0, rawFloor);
+  return { min: minVal, max: Math.max(minVal + 5, maxVal) };
+}
+
+/**
+ * 微型走势图计算产物接口。
+ */
+export interface SparklineGeometry {
+  points: { x: number; y: number }[];
+  svgPath: string;
+  svgAreaPath: string;
+  min: number | null;
+  max: number | null;
+}
+
+/**
+ * 将时序采样点投影为微型 SVG 走势折线与面积路径（纯函数）。
+ *
+ * @param points - 时序数据点数组。
+ * @param startTime - 窗口起始时间戳，单位毫秒。
+ * @param durationMs - 窗口总时长，单位毫秒。
+ * @param width - SVG 绘图区宽度，默认 240。
+ * @param height - SVG 绘图区高度，默认 50。
+ * @returns 包含坐标点集、线条路径、面积闭合路径及极值的几何对象。
+ */
+export function generateSparkline(
+  points: { timestamp: number; value: number | null }[],
+  startTime: number,
+  durationMs: number,
+  width = 240,
+  height = 50,
+): SparklineGeometry {
+  const validPoints = points.filter(
+    (p): p is { timestamp: number; value: number } =>
+      p.value !== null && p.value !== undefined && Number.isFinite(p.value),
+  );
+  if (!validPoints.length) {
+    return { points: [], svgPath: '', svgAreaPath: '', min: null, max: null };
+  }
+
+  const values = validPoints.map((p) => p.value);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = max - min || Math.abs(max) * 0.1 || 1;
+  const padMin = min - span * 0.1;
+  const padMax = max + span * 0.1;
+
+  const coords = validPoints.map((p) => {
+    const cx = Math.max(
+      5,
+      Math.min(width - 5, 5 + ((p.timestamp - startTime) / (durationMs || 1)) * (width - 10)),
+    );
+    const cy = Math.max(
+      5,
+      Math.min(
+        height - 5,
+        height - 5 - ((p.value - padMin) / (padMax - padMin || 1)) * (height - 10),
+      ),
+    );
+    return { x: cx, y: cy };
+  });
+
+  const svgPath = coords
+    .map((pt, i) => `${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`)
+    .join(' ');
+  const svgAreaPath =
+    coords.length > 1
+      ? `${svgPath} L ${coords.at(-1)!.x.toFixed(1)} ${height} L ${coords[0].x.toFixed(1)} ${height} Z`
+      : '';
+
+  return { points: coords, svgPath, svgAreaPath, min, max };
 }

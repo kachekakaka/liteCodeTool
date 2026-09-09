@@ -13,6 +13,18 @@
   --text: #dbf4ff;
   --secondary: #a8c1da;
   --muted: #7191b0;
+  /* 大屏控件与流式面板扩展 Tokens */
+  --stream-bg: rgba(5, 17, 33, 0.75);
+  --stream-header-bg: #09233f;
+  --stream-border: #1c4568;
+  --stream-border-subtle: #19466b;
+  --stream-track-bg: #061527;
+  --stream-thumb-bg: #1c4568;
+  --stream-thumb-hover: #2a6190;
+  --stream-item-bg: rgba(10, 31, 56, 0.4);
+  --stream-item-hover: rgba(18, 50, 88, 0.6);
+  --axis-tag-bg: rgba(36, 84, 123, 0.6);
+  --axis-tag-color: #8ebad9;
   font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   color: var(--text);
   background: var(--root);

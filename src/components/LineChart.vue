@@ -4,7 +4,14 @@ import { usePageMode } from '../composables/usePageMode.ts';
 import { computed, ref } from 'vue';
 import type { PropType } from 'vue';
 import type { ComponentInstance, ComponentTemplate, Control, Point } from '../types.ts';
-import { inWindow, DEFAULT_CHART_COLORS, alignTrajectoryPoints } from '../engine/core.ts';
+import {
+  inWindow,
+  DEFAULT_CHART_COLORS,
+  alignTrajectoryPoints,
+  formatAdaptiveTimeTick,
+  calculateExtents,
+  resolveEntityRecord,
+} from '../engine/core.ts';
 import type { TrajectoryPoint } from '../engine/core.ts';
 const props = defineProps({
   control: { type: Object as PropType<Control>, required: true },
@@ -16,16 +23,22 @@ const page = usePageMode();
 
 const hover = ref<number | null>(null);
 
-const minutes = computed(() => props.control.props.lookbackMinutes ?? 20);
+const durationMs = computed(() => {
+  if (props.control.props.lookbackUnit === 'second') {
+    return (props.control.props.lookbackSeconds ?? 60) * 1000;
+  }
+  return (props.control.props.lookbackMinutes ?? 20) * 60 * 1000;
+});
+
+const minutes = computed(() => durationMs.value / 60000);
 
 /**
  * 把历史点时间转换为坐标轴使用的时分文本。
  *
  * @param time - 时间戳，单位毫秒。
- * @returns 中文本地时间的 24 小时时分字符串。
+ * @returns 中文本地时间字符串。
  */
-const timeLabel = (time: number) =>
-  new Date(time).toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit' });
+const timeLabel = (time: number) => formatAdaptiveTimeTick(time, durationMs.value);
 
 const isGlobalMode = computed(
   () =>
@@ -78,6 +91,7 @@ const series = computed(() =>
         ...seriesItem,
         id: '_global',
         label,
+        yAxis: seriesItem.yAxis || 'left',
         unit: field?.unit ?? '',
         fieldName: field?.name ?? seriesItem.field,
         color: seriesItem.color ?? DEFAULT_CHART_COLORS[index % DEFAULT_CHART_COLORS.length],
@@ -89,26 +103,48 @@ const series = computed(() =>
     }
 
     const slot = props.template.slots.find((s) => s.id === seriesItem.slotId);
-    const id = props.instance.slotBindings[seriesItem.slotId ?? ''];
-    const schema = dataState.schemas.find((s) => s.type === slot?.schemaType);
-    const record = id ? dataState.store.get(slot?.schemaType ?? 'vessel', id) : undefined;
+    const slotId = seriesItem.slotId ?? '';
+    // 严格槽位来源权威原则：大屏槽位指派来源优先于设计态静态配置
+    const activeSource = props.instance.slotSourceBindings?.[slotId] || seriesItem.filterSource;
+    let id = props.instance.slotBindings[slotId];
+    if (isWorkshop.value && props.control.props.workshopPreviewTarget) {
+      id = props.control.props.workshopPreviewTarget;
+    }
+    const schemaType = slot?.schemaType ?? 'vessel';
+    const schema = dataState.schemas.find((s) => s.type === schemaType);
+    const targetRecord = id
+      ? resolveEntityRecord(dataState.store, schemaType, id, activeSource)
+      : undefined;
     const field = schema?.fields.find((f) => f.key === seriesItem.field);
-    const points = inWindow(record?.history[seriesItem.field] ?? [], dataState.now, minutes.value);
+
+    let points = inWindow(
+      targetRecord?.history[seriesItem.field] ?? [],
+      dataState.now,
+      minutes.value,
+    );
     const lastPt = points.length && points.at(-1)?.value !== null ? points.at(-1)!.value : null;
 
     // 工坊脱敏：工坊模式下强制使用占位符别名展示，杜绝写死实体误解
     let label =
-      seriesItem.label || String(record?.data.vessel_name ?? (id || slot?.label || '未绑定对象'));
+      seriesItem.label ||
+      String(
+        targetRecord?.data.vessel_name ??
+          targetRecord?.data.batch_no ??
+          (id || slot?.label || '未绑定对象'),
+      );
     if (isWorkshop.value) {
       label = `【${slot?.label || '对象' + (index + 1)}】`;
+    }
+    if (activeSource) {
+      label += ` [${activeSource}]`;
     }
 
     // 双轴时序航迹提取（O(N) 线性纯函数匹配）：每条曲线天然使用自身对象的 X 轴度量
     let trajectoryPoints: TrajectoryPoint[] = [];
     if (isFieldAxis.value) {
-      if (record) {
+      if (targetRecord) {
         const xPoints = inWindow(
-          record.history[xFieldName.value] ?? [],
+          targetRecord.history[xFieldName.value] ?? [],
           dataState.now,
           minutes.value,
         );
@@ -120,6 +156,7 @@ const series = computed(() =>
       ...seriesItem,
       id,
       label,
+      yAxis: seriesItem.yAxis || 'left',
       unit: field?.unit ?? '',
       fieldName: field?.name ?? seriesItem.field,
       color: seriesItem.color ?? DEFAULT_CHART_COLORS[index % DEFAULT_CHART_COLORS.length],
@@ -131,48 +168,53 @@ const series = computed(() =>
   }),
 );
 
-const incompatible = computed(
-  () => !isFieldAxis.value && new Set(series.value.map((s) => s.unit)).size > 1,
-);
+// 左轴曲线与右轴曲线
+const leftSeries = computed(() => series.value.filter((s) => s.yAxis !== 'right'));
+const rightSeries = computed(() => series.value.filter((s) => s.yAxis === 'right'));
+const hasRightAxis = computed(() => !isFieldAxis.value && rightSeries.value.length > 0);
 
-// Y 轴范围（时序模式与自由双轴模式复用）
-const yExtents = computed(() => {
+// X 轴右边界与绘图区宽度
+const plotRight = computed(() => (hasRightAxis.value ? 1130 : 1174));
+const plotWidth = computed(() => plotRight.value - 58);
+
+// 左 Y 轴范围（时序模式与自由双轴模式复用）
+const leftExtents = computed(() => {
   if (isFieldAxis.value) {
     const allY = series.value.flatMap((s) => s.trajectoryPoints.map((p) => p.yVal));
-    if (!allY.length) return { min: 0, max: 10 };
-    const rawMin = Math.min(...allY);
-    const rawMax = Math.max(...allY);
-    const span = rawMax - rawMin || Math.abs(rawMax) * 0.1 || 1;
-    return { min: rawMin - span * 0.08, max: rawMax + span * 0.08 };
+    return calculateExtents(allY, true);
   }
-  const maxVal = Math.max(
-    5,
-    Math.ceil(
-      series.value.reduce((a, s) => s.points.reduce((n, p) => Math.max(n, p.value ?? 0), a), 0) / 5,
-    ) * 5,
-  );
-  const minVal = Math.min(
-    0,
-    Math.floor(
-      series.value.reduce((a, s) => s.points.reduce((n, p) => Math.min(n, p.value ?? 0), a), 0) / 5,
-    ) * 5,
-  );
-  return { min: minVal, max: maxVal };
+  const targetSeries = leftSeries.value.length ? leftSeries.value : series.value;
+  const allVals = targetSeries.flatMap((s) => s.points.map((p) => p.value));
+  return calculateExtents(allVals, false);
 });
 
-const max = computed(() => yExtents.value.max);
+// 右 Y 轴范围
+const rightExtents = computed(() => {
+  if (!hasRightAxis.value) return { min: 0, max: 10 };
+  const allVals = rightSeries.value.flatMap((s) => s.points.map((p) => p.value));
+  return calculateExtents(allVals, false);
+});
 
-const min = computed(() => yExtents.value.min);
+const max = computed(() => leftExtents.value.max);
+const min = computed(() => leftExtents.value.min);
+const rightMax = computed(() => rightExtents.value.max);
+const rightMin = computed(() => rightExtents.value.min);
+
+const leftUnit = computed(() => leftSeries.value.find((s) => s.unit)?.unit || '');
+const rightUnit = computed(() => rightSeries.value.find((s) => s.unit)?.unit || '');
+
+const incompatible = computed(() => {
+  if (isFieldAxis.value) return false;
+  const leftUnits = new Set(leftSeries.value.map((s) => s.unit).filter(Boolean));
+  const rightUnits = new Set(rightSeries.value.map((s) => s.unit).filter(Boolean));
+  return leftUnits.size > 1 || rightUnits.size > 1;
+});
 
 // X 轴范围（自由双轴航迹模式）
 const xExtents = computed(() => {
   if (!isFieldAxis.value) return { min: 0, max: 1 };
   const allX = series.value.flatMap((s) => s.trajectoryPoints.map((p) => p.xVal));
-  if (!allX.length) return { min: 0, max: 10 };
-  const rawMin = Math.min(...allX);
-  const rawMax = Math.max(...allX);
-  const span = rawMax - rawMin || Math.abs(rawMax) * 0.1 || 1;
-  return { min: rawMin - span * 0.08, max: rawMax + span * 0.08 };
+  return calculateExtents(allX, true);
 });
 
 // 坐标映射
@@ -180,18 +222,24 @@ const xExtents = computed(() => {
  * 将滑动时间窗口内的时间映射到 SVG 横坐标。
  *
  * @param time - 数据点时间戳，单位毫秒。
- * @returns SVG 逻辑横坐标；窗口左右边界对应 58 与 1174。
+ * @returns SVG 逻辑横坐标。
  */
-const x = (time: number) =>
-  58 + ((time - (dataState.now - minutes.value * 60000)) / (minutes.value * 60000)) * 1116;
+const x = (time: number) => {
+  const startTime = dataState.now - durationMs.value;
+  return 58 + ((time - startTime) / (durationMs.value || 1)) * plotWidth.value;
+};
 
 /**
- * 将时序曲线数值映射到 SVG 纵坐标，按当前值域反向映射。
+ * 将时序曲线数值映射到 SVG 纵坐标，按指定轴的值域反向映射。
  *
- * @param value - 数据点数值，与当前纵轴值域使用相同单位。
- * @returns SVG 逻辑纵坐标，基线为 284，绘图区高度为 238。
+ * @param value - 数据点数值。
+ * @param isRight - 是否使用右轴值域。
+ * @returns SVG 逻辑纵坐标。
  */
-const y = (value: number) => 284 - ((value - min.value) / (max.value - min.value || 1)) * 238;
+const y = (value: number, isRight = false) => {
+  const ext = isRight ? rightExtents.value : leftExtents.value;
+  return 284 - ((value - ext.min) / (ext.max - ext.min || 1)) * 238;
+};
 
 /**
  * 按字段值域将双轴航迹 X 值映射到 SVG 横坐标。
@@ -200,7 +248,7 @@ const y = (value: number) => 284 - ((value - min.value) / (max.value - min.value
  * @returns SVG 逻辑横坐标。
  */
 const mapFieldX = (xVal: number) =>
-  58 + ((xVal - xExtents.value.min) / (xExtents.value.max - xExtents.value.min || 1)) * 1116;
+  58 + ((xVal - xExtents.value.min) / (xExtents.value.max - xExtents.value.min || 1)) * plotWidth.value;
 
 /**
  * 按字段值域将双轴航迹 Y 值映射到 SVG 纵坐标。
@@ -209,32 +257,36 @@ const mapFieldX = (xVal: number) =>
  * @returns SVG 逻辑纵坐标。
  */
 const mapFieldY = (yVal: number) =>
-  284 - ((yVal - yExtents.value.min) / (yExtents.value.max - yExtents.value.min || 1)) * 238;
+  284 - ((yVal - leftExtents.value.min) / (leftExtents.value.max - leftExtents.value.min || 1)) * 238;
 
 // 时序折线路径
 /**
  * 将有序时序点拆成连续线段，遇到 null 或超出断线阈值时留白。
  *
- * @param points - 按时间升序排列的历史点；调用方负责窗口筛选。
- * @returns 各连续段的折线路径、面积路径和末点坐标；不会跨空值强行连线。
+ * @param points - 按时间升序排列的历史点。
+ * @param isRight - 是否按右 Y 轴进行纵坐标映射。
+ * @returns 各连续段的折线路径、面积路径和末点坐标。
  */
-const paths = (points: Point[]) => {
+const paths = (points: Point[], isRight = false) => {
   const result: { d: string; areaD: string; lastX: number; lastY: number }[] = [];
   let current: Point[] = [];
-  /**
-   * 将当前连续点段写入折线结果，并清空分段缓冲。
-   *
-   * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
-   */
   const flush = () => {
     if (current.length) {
       const lineD = current
-        .map((p, i) => `${i ? 'L' : 'M'} ${x(p.timestamp).toFixed(2)} ${y(p.value!).toFixed(2)}`)
+        .map(
+          (p, i) =>
+            `${i ? 'L' : 'M'} ${x(p.timestamp).toFixed(2)} ${y(p.value!, isRight).toFixed(2)}`,
+        )
         .join(' ');
       const firstX = x(current[0].timestamp).toFixed(2);
       const lastX = x(current.at(-1)!.timestamp).toFixed(2);
       const areaD = `${lineD} L ${lastX} 284 L ${firstX} 284 Z`;
-      result.push({ d: lineD, areaD, lastX: Number(lastX), lastY: y(current.at(-1)!.value!) });
+      result.push({
+        d: lineD,
+        areaD,
+        lastX: Number(lastX),
+        lastY: y(current.at(-1)!.value!, isRight),
+      });
     }
     current = [];
   };
@@ -288,6 +340,14 @@ const pointCount = computed(() => {
   return series.value.reduce((n, s) => n + s.points.length, 0);
 });
 
+const lookbackText = computed(() => {
+  if (props.control.props.lookbackUnit === 'second') {
+    const s = props.control.props.lookbackSeconds ?? 60;
+    return s >= 60 && s % 60 === 0 ? `${s / 60} 分钟` : `${s} 秒`;
+  }
+  return `${minutes.value} 分钟`;
+});
+
 const tooltip = computed(() => {
   if (hover.value === null) return [];
   if (isFieldAxis.value) {
@@ -305,18 +365,20 @@ const tooltip = computed(() => {
       };
     });
   }
-  const target = dataState.now - (1 - hover.value) * minutes.value * 60000;
+  const target = dataState.now - (1 - hover.value) * durationMs.value;
+  const timeThreshold = Math.max(2000, durationMs.value / 20);
   return series.value.map((s) => {
     const nearest = s.points.reduce<Point | null>(
       (best, p) =>
         !best || Math.abs(p.timestamp - target) < Math.abs(best.timestamp - target) ? p : best,
       null,
     );
+    const axisTag = hasRightAxis.value ? (s.yAxis === 'right' ? ' [右轴]' : ' [左轴]') : '';
     return {
-      label: s.label,
+      label: s.label + axisTag,
       color: s.color,
       value:
-        nearest && Math.abs(nearest.timestamp - target) < 30000 && nearest.value !== null
+        nearest && Math.abs(nearest.timestamp - target) <= timeThreshold && nearest.value !== null
           ? `${nearest.value.toFixed(1)} ${s.unit}`
           : '--',
     };
@@ -333,7 +395,7 @@ function move(event: MouseEvent) {
   const box = (event.currentTarget as SVGElement).getBoundingClientRect();
   hover.value = Math.max(
     0,
-    Math.min(1, (((event.clientX - box.left) / box.width) * 1200 - 58) / 1116),
+    Math.min(1, (((event.clientX - box.left) / box.width) * 1200 - 58) / plotWidth.value),
   );
 }
 
@@ -368,17 +430,21 @@ const xFieldLabel = (n: number) => {
         <span
           v-if="isWorkshop"
           class="workshop-chart-hint"
-          >模具预览中 · 实际船舶在投屏大屏中指派</span
+          >模具预览中 · 实际实体在投屏大屏中指派</span
         >
       </span>
       <span v-else>
-        近 {{ minutes }} 分钟 <i>·</i> {{ series[0]?.fieldName || '未配置字段' }}（{{
-          series[0]?.unit || '数值'
-        }}）
+        近 {{ lookbackText }} <i>·</i>
+        <template v-if="hasRightAxis">
+          左轴: {{ leftUnit || '数值' }} <i>·</i> 右轴: {{ rightUnit || '数值' }}
+        </template>
+        <template v-else>
+          {{ series[0]?.fieldName || '未配置字段' }}（{{ series[0]?.unit || '数值' }}）
+        </template>
         <span
           v-if="isWorkshop"
           class="workshop-chart-hint"
-          >模具预览中 · 实际船舶在投屏大屏中指派</span
+          >模具预览中 · 实际实体在投屏大屏中指派</span
         >
       </span>
       <div class="chart-legend">
@@ -387,6 +453,11 @@ const xFieldLabel = (n: number) => {
           :key="index"
         >
           <b :style="{ background: s.color }"></b>{{ s.label }}
+          <span
+            v-if="hasRightAxis"
+            class="axis-tag"
+            >{{ s.yAxis === 'right' ? '右' : '左' }}</span
+          >
           <template v-if="s.latest !== null && !isFieldAxis">
             <i style="font-style: normal; margin-left: 4px; color: #dbf4ff"
               >{{ s.latest }} {{ s.unit }}</i
@@ -426,6 +497,26 @@ const xFieldLabel = (n: number) => {
             />
           </linearGradient>
         </defs>
+        <!-- Y 轴顶部量纲单位说明 -->
+        <text
+          v-if="leftUnit"
+          x="54"
+          y="34"
+          text-anchor="end"
+          class="chart-axis-unit"
+        >
+          ({{ leftUnit }})
+        </text>
+        <text
+          v-if="hasRightAxis && rightUnit"
+          :x="plotRight + 12"
+          y="34"
+          text-anchor="start"
+          class="chart-axis-unit"
+        >
+          ({{ rightUnit }})
+        </text>
+
         <!-- Y 轴网格与刻度 -->
         <g
           v-for="n in 6"
@@ -434,7 +525,7 @@ const xFieldLabel = (n: number) => {
           <line
             x1="58"
             :y1="46 + (n - 1) * 47.6"
-            x2="1174"
+            :x2="plotRight"
             :y2="46 + (n - 1) * 47.6"
             class="chart-grid"
           />
@@ -445,6 +536,15 @@ const xFieldLabel = (n: number) => {
           >
             {{ (max - ((max - min) * (n - 1)) / 5).toFixed(isFieldAxis ? 2 : 0) }}
           </text>
+          <text
+            v-if="hasRightAxis"
+            :x="plotRight + 12"
+            :y="51 + (n - 1) * 47.6"
+            text-anchor="start"
+            fill="#8ebad9"
+          >
+            {{ (rightMax - ((rightMax - rightMin) * (n - 1)) / 5).toFixed(0) }}
+          </text>
         </g>
         <!-- X 轴网格与刻度（时间轴或数值字段刻度） -->
         <g
@@ -452,26 +552,42 @@ const xFieldLabel = (n: number) => {
           :key="'x' + n"
         >
           <line
-            :x1="58 + (n - 1) * 279"
+            :x1="58 + (n - 1) * (plotWidth / 4)"
             y1="46"
-            :x2="58 + (n - 1) * 279"
+            :x2="58 + (n - 1) * (plotWidth / 4)"
             y2="284"
             class="chart-grid vertical"
           />
           <text
-            :x="58 + (n - 1) * 279"
+            :x="58 + (n - 1) * (plotWidth / 4)"
             y="316"
             :text-anchor="n === 1 ? 'start' : n === 5 ? 'end' : 'middle'"
           >
             {{
-              isFieldAxis ? xFieldLabel(n) : timeLabel(dataState.now - (5 - n) * minutes * 15000)
+              isFieldAxis ? xFieldLabel(n) : timeLabel(dataState.now - (5 - n) * (durationMs / 4))
             }}
           </text>
         </g>
+        <!-- 坐标轴物理基线：左 Y 轴基线、右 Y 轴基线（双轴时渲染）与 X 轴底线 -->
+        <line
+          x1="58"
+          y1="46"
+          x2="58"
+          y2="284"
+          stroke="#24547B"
+        />
+        <line
+          v-if="hasRightAxis"
+          :x1="plotRight"
+          y1="46"
+          :x2="plotRight"
+          y2="284"
+          stroke="#24547B"
+        />
         <line
           x1="58"
           y1="284"
-          x2="1174"
+          :x2="plotRight"
           y2="284"
           stroke="#24547B"
         />
@@ -521,7 +637,7 @@ const xFieldLabel = (n: number) => {
             :key="index"
           >
             <g
-              v-for="(path, p) in paths(s.points)"
+              v-for="(path, p) in paths(s.points, s.yAxis === 'right')"
               :key="p"
             >
               <path
@@ -548,9 +664,9 @@ const xFieldLabel = (n: number) => {
 
         <line
           v-if="hover !== null"
-          :x1="58 + hover * 1116"
+          :x1="58 + hover * plotWidth"
           y1="46"
-          :x2="58 + hover * 1116"
+          :x2="58 + hover * plotWidth"
           y2="284"
           stroke="#7295B5"
           stroke-dasharray="4 5"
@@ -563,7 +679,7 @@ const xFieldLabel = (n: number) => {
         <span class="empty-cross">＋</span>
         <strong>{{
           incompatible
-            ? '请为对比曲线配置相同单位的字段'
+            ? '请为同一轴向配置相同单位的字段'
             : isFieldAxis
               ? '等待双轴采样点位对齐'
               : '等待累计时序数据'
@@ -580,7 +696,7 @@ const xFieldLabel = (n: number) => {
         :style="{ left: Math.min(hover * 80, 70) + '%' }"
       >
         <strong>{{
-          isFieldAxis ? '当前光标位置' : timeLabel(dataState.now - (1 - hover) * minutes * 60000)
+          isFieldAxis ? '当前光标位置' : timeLabel(dataState.now - (1 - hover) * durationMs)
         }}</strong>
         <div
           v-for="s in tooltip"

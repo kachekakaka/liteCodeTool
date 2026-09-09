@@ -18,6 +18,7 @@ import TableProperties from './inspector/TableProperties.vue';
 import LineProperties from './inspector/LineProperties.vue';
 import ImageProperties from './inspector/ImageProperties.vue';
 import LightProperties from './inspector/LightProperties.vue';
+import StreamProperties from './inspector/StreamProperties.vue';
 import DataBindingProperties from './inspector/DataBindingProperties.vue';
 import CardHeaderProperties from './inspector/CardHeaderProperties.vue';
 import CanvasProperties from './inspector/CanvasProperties.vue';
@@ -104,6 +105,7 @@ function resetOverride() {
             <ImageProperties />
             <LineProperties />
             <TableProperties />
+            <StreamProperties />
             <DataValueStatus />
           </div>
           <div v-else>

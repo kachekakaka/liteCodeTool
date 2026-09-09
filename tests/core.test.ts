@@ -22,6 +22,12 @@ import {
   formatControlSummary,
   formatControlOption,
   formatControlTag,
+  evaluateColorRule,
+  formatAdaptiveTimeTick,
+  calculateExtents,
+  generateSparkline,
+  resolveEntityRecord,
+  extractUniqueTargets,
 } from '../src/engine/core.ts';
 import type {
   ComponentInstance,
@@ -675,3 +681,287 @@ test('控件语义化展示与 UUID 消除：正确生成人类友好的中文�
   assert.equal(formatControlTag(lineCtrl, tpl), '折线图 1 (时序曲线 (speed, heading))');
   assert.equal(formatControlTag(textCtrl, tpl), '文本 2 ("AIS 船舶实时监管与调…")');
 });
+
+test('规则引擎 evaluateColorRule：支持单侧比较、闭区间、精确文本与短路匹配', () => {
+  const rules = [
+    { value: '> 50', color: '#EF4444' },     // 红色：大于 50
+    { value: '20..50', color: '#F59E0B' },    // 黄色：20 到 50 之间
+    { value: '<= 10', color: '#10B981' },     // 绿色：小于等于 10
+    { value: '告警', color: '#DC2626' },      // 文本精确匹配
+  ];
+
+  // 1. 数值单侧比较
+  assert.equal(evaluateColorRule(55, rules), '#EF4444');
+  assert.equal(evaluateColorRule('60', rules), '#EF4444'); // 数字字符串兼容
+
+  // 2. 闭区间匹配
+  assert.equal(evaluateColorRule(50, rules), '#F59E0B'); // 边界 50 (不大于50，落入 20..50)
+  assert.equal(evaluateColorRule(35, rules), '#F59E0B');
+  assert.equal(evaluateColorRule(20, rules), '#F59E0B'); // 边界 20
+
+  // 3. 小于等于比较
+  assert.equal(evaluateColorRule(10, rules), '#10B981'); // 边界 10
+  assert.equal(evaluateColorRule(5, rules), '#10B981');
+  assert.equal(evaluateColorRule(-5, rules), '#10B981');
+
+  // 4. 未落入任何规则返回 null
+  assert.equal(evaluateColorRule(15, rules), null); // 10 < 15 < 20 未定义
+
+  // 5. 文本精确匹配
+  assert.equal(evaluateColorRule('告警', rules), '#DC2626');
+  assert.equal(evaluateColorRule('在航', rules), null);
+
+  // 6. 空值与防御性校验
+  assert.equal(evaluateColorRule(null, rules), null);
+  assert.equal(evaluateColorRule(undefined, rules), null);
+  assert.equal(evaluateColorRule(25, []), null);
+  assert.equal(evaluateColorRule(25, undefined), null);
+});
+
+test('自适应时间刻度 formatAdaptiveTimeTick：秒级窗口显示 HH:mm:ss，长周期显示 HH:mm', () => {
+  const ts = new Date('2026-09-09T14:30:15').getTime();
+
+  // 1. 短周期（<= 3 分钟，即 180,000ms）显示包含秒
+  const tickShort = formatAdaptiveTimeTick(ts, 60000); // 1 分钟窗口
+  assert.equal(tickShort.split(':').length, 3); // 格式如 14:30:15
+
+  // 2. 长周期（> 3 分钟）显示仅到分
+  const tickLong = formatAdaptiveTimeTick(ts, 600000); // 10 分钟窗口
+  assert.equal(tickLong.split(':').length, 2); // 格式如 14:30
+});
+
+test('表格列状态颜色规则校验：允许合法 tableColumnRules 并拒绝非法规则', () => {
+  const tableCtrl: Control = {
+    id: 'tbl_ctrl',
+    type: 'table',
+    style: { x: 0, y: 0, w: 200, h: 100 },
+    props: {
+      schemaType: 'vessel',
+      columns: ['speed', 'status'],
+      tableColumnRules: [
+        {
+          field: 'speed',
+          rules: [{ value: '> 20', color: '#EF4444' }],
+        },
+      ],
+    },
+  };
+
+  const validTpl: ComponentTemplate = {
+    id: 'tpl_tbl',
+    name: '表格模板',
+    category: '基础',
+    layout: { width: 300, height: 200 },
+    slots: [],
+    controls: [tableCtrl],
+  };
+
+  assert.doesNotThrow(() => validateTemplate(validTpl, schemas));
+
+  // 非法颜色值抛出异常
+  const invalidTpl = clone(validTpl);
+  invalidTpl.controls[0].props.tableColumnRules![0].rules[0].color = 'invalid-color';
+  assert.throws(() => validateTemplate(invalidTpl, schemas), /表格列规则颜色格式无效/);
+});
+
+test('极值计算纯函数 calculateExtents：空值防御、时序规整化与航迹紧凑边距', () => {
+  // 1. 空输入与全 null 防御
+  assert.deepEqual(calculateExtents([]), { min: 0, max: 10 });
+  assert.deepEqual(calculateExtents([null, undefined]), { min: 0, max: 10 });
+
+  // 2. 常规时序模式（按 5 步长规整化，min 保底不高于 0）
+  const extents = calculateExtents([12.3, 44.5, 18.0]);
+  assert.equal(extents.min, 0);
+  assert.equal(extents.max % 5, 0);
+  assert.ok(extents.max >= 45);
+
+  // 3. 包含负数值域时序
+  const negExtents = calculateExtents([-25, -10, 5]);
+  assert.ok(negExtents.min <= -25);
+  assert.equal(Math.abs(negExtents.min % 5), 0);
+  assert.ok(negExtents.max >= 5);
+
+  // 4. 自由双轴航迹模式（保留 8% 边距，不对齐 5 步长）
+  const fieldExtents = calculateExtents([121.4, 121.5, 121.6], true);
+  assert.ok(fieldExtents.min < 121.4);
+  assert.ok(fieldExtents.max > 121.6);
+  assert.ok(fieldExtents.max - fieldExtents.min < 1);
+});
+
+test('微图生成纯函数 generateSparkline：空值防御与 SVG 路径坐标投影计算', () => {
+  const t0 = 1000000;
+  // 1. 空点防御
+  assert.deepEqual(generateSparkline([], t0, 120000), {
+    points: [],
+    svgPath: '',
+    svgAreaPath: '',
+    min: null,
+    max: null,
+  });
+
+  // 2. 正常数据点投影
+  const points = [
+    { timestamp: t0, value: 10 },
+    { timestamp: t0 + 60000, value: 20 },
+    { timestamp: t0 + 120000, value: 15 },
+  ];
+  const geo = generateSparkline(points, t0, 120000, 240, 50);
+  assert.equal(geo.min, 10);
+  assert.equal(geo.max, 20);
+  assert.equal(geo.points.length, 3);
+  assert.ok(geo.svgPath.startsWith('M'));
+  assert.ok(geo.svgAreaPath.endsWith('Z'));
+});
+
+test('双维度实体解析 resolveEntityRecord：支持按批号与具体传感器源精确查找记录', () => {
+  const store = new EntityStore();
+  const now = 1000000;
+
+  // 注入同批号 P-101 但不同传感器来源的数据包
+  store.apply({
+    type: 'projectile',
+    id: 'P-101',
+    timestamp: now,
+    data: { batch_no: 'P-101', source: '雷达1', altitude: 48.5, speed: 2450 },
+  });
+  store.apply({
+    type: 'projectile',
+    id: 'P-101_telemetry',
+    timestamp: now,
+    data: { batch_no: 'P-101', source: '遥测1', altitude: 48.68, speed: 2465 },
+  });
+
+  // 1. 未指定来源时，默认返回主标识记录
+  const defaultRec = resolveEntityRecord(store, 'projectile', 'P-101');
+  assert.equal(defaultRec?.data.source, '雷达1');
+  assert.equal(defaultRec?.data.altitude, 48.5);
+
+  // 2. 指定雷达1来源，返回雷达1记录
+  const radarRec = resolveEntityRecord(store, 'projectile', 'P-101', '雷达1');
+  assert.equal(radarRec?.data.source, '雷达1');
+
+  // 3. 指定遥测1来源，精确定位到辅助遥测记录
+  const teleRec = resolveEntityRecord(store, 'projectile', 'P-101', '遥测1');
+  assert.equal(teleRec?.data.source, '遥测1');
+  assert.equal(teleRec?.data.altitude, 48.68);
+
+  // 4. 严格来源权威：指定不存在的来源时严格返回 undefined，不静默偷换为默认源
+  const notFoundRec = resolveEntityRecord(store, 'projectile', 'P-101', '不存在的雷达9');
+  assert.equal(notFoundRec, undefined);
+
+  // 5. 空值防御
+  assert.equal(resolveEntityRecord(store, undefined, 'P-101'), undefined);
+  assert.equal(resolveEntityRecord(store, 'projectile', undefined), undefined);
+});
+
+test('大屏槽位数据源校验：validateScreen 允许合法 slotSourceBindings 并拒绝非法槽位或格式', () => {
+  const tpl: ComponentTemplate = {
+    id: 'tpl_flight',
+    name: '飞行卡片',
+    category: '测控',
+    layout: { width: 400, height: 300 },
+    slots: [
+      { id: 'slot_1', label: '目标1', schemaType: 'projectile' },
+      { id: 'slot_2', label: '目标2', schemaType: 'projectile' },
+    ],
+    controls: [],
+  };
+
+  const screen = {
+    id: 'screen_flight_test',
+    name: '飞行测控大屏',
+    resolution: { width: 1920, height: 1080 },
+    background: '#030B17',
+    components: [
+      {
+        instanceId: 'inst_flight_1',
+        templateId: 'tpl_flight',
+        position: { x: 0, y: 0, w: 400, h: 300 },
+        slotBindings: { slot_1: 'P-101', slot_2: 'P-102' },
+        slotSourceBindings: { slot_1: '雷达1', slot_2: '遥测1' },
+        controlOverrides: {},
+      },
+    ],
+  };
+
+  // 合法配置校验通过
+  assert.doesNotThrow(() => validateScreen(screen, [tpl], schemas));
+
+  // 1. 槽位数据源映射到不存在的槽位时被拒绝
+  const badSlotScreen = clone(screen);
+  badSlotScreen.components[0].slotSourceBindings = { slot_nonexistent: '雷达1' };
+  assert.throws(() => validateScreen(badSlotScreen, [tpl], schemas), /槽位数据源指派了不存在的槽位/);
+
+  // 2. 槽位数据源非对象时被拒绝
+  const badFormatScreen = clone(screen);
+  badFormatScreen.components[0].slotSourceBindings = 'invalid_string' as any;
+  assert.throws(() => validateScreen(badFormatScreen, [tpl], schemas), /槽位数据源指派无效/);
+});
+
+test('短周期滑动窗口 inWindow：支持 15 秒/30 秒短周期精确截取，杜绝 1 分钟外越界点', () => {
+  const now = 1000000;
+  const points = [
+    { timestamp: now - 50000, value: 10 }, // 50 秒前（若按 15 秒截取必须被排除）
+    { timestamp: now - 35000, value: 20 }, // 35 秒前
+    { timestamp: now - 10000, value: 30 }, // 10 秒前（在 15 秒内）
+    { timestamp: now - 2000, value: 40 },  // 2 秒前（在 15 秒内）
+  ];
+
+  // 1. 设置 15 秒窗口（15 / 60 分钟）
+  const result15s = inWindow(points, now, 15 / 60);
+  assert.equal(result15s.length, 2);
+  assert.equal(result15s[0].value, 30);
+  assert.equal(result15s[1].value, 40);
+
+  // 2. 设置 30 秒窗口（30 / 60 分钟）
+  const result30s = inWindow(points, now, 30 / 60);
+  assert.equal(result30s.length, 2);
+  assert.equal(result30s[0].value, 30);
+  assert.equal(result30s[1].value, 40);
+
+  // 3. 设置 60 秒窗口（1 分钟）
+  const result60s = inWindow(points, now, 1);
+  assert.equal(result60s.length, 4);
+});
+
+test('公共目标排重提取 extractUniqueTargets：多传感器同批号正确合并为唯一目标', () => {
+  const store = new EntityStore();
+  const now = 1000000;
+
+  // 注入同一飞行目标 P-101 的 3 个不同传感器记录
+  store.apply({
+    type: 'projectile',
+    id: 'P-101',
+    timestamp: now,
+    data: { batch_no: 'P-101', source: '雷达1' },
+  });
+  store.apply({
+    type: 'projectile',
+    id: 'P-101_src2',
+    timestamp: now,
+    data: { batch_no: 'P-101', source: '雷达2' },
+  });
+  store.apply({
+    type: 'projectile',
+    id: 'P-101_src3',
+    timestamp: now,
+    data: { batch_no: 'P-101', source: '遥测1' },
+  });
+
+  // 注入另一目标 P-102
+  store.apply({
+    type: 'projectile',
+    id: 'P-102',
+    timestamp: now,
+    data: { batch_no: 'P-102', source: '雷达1' },
+  });
+
+  const targets = extractUniqueTargets(store, 'projectile');
+  assert.equal(targets.length, 2);
+  assert.equal(targets[0].id, 'P-101');
+  assert.equal(targets[0].label, 'P-101');
+  assert.equal(targets[1].id, 'P-102');
+  assert.equal(targets[1].label, 'P-102');
+});
+
+

@@ -45,3 +45,7 @@ liteCodeTool_datas/
 *.zip
 *.tar.gz
 *.rar
+
+# 本地临时与测试文档
+*.docx
+~$*

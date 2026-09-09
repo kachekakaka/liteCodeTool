@@ -72,6 +72,7 @@ function removeLightRule(index: number) {
         <input
           :value="rule.value"
           aria-label="状态值"
+          placeholder="值或表达式，如 >30 或 10..20"
           @change="lightRule(index, 'value', $event)"
         /><input
           type="color"
@@ -92,7 +93,9 @@ function removeLightRule(index: number) {
       >
         ＋ 添加状态颜色
       </button>
-      <p class="field-help">未命中的状态使用中性色，缺值保持“状态未知”，不推断为正常。</p>
+      <p class="field-help">
+        支持文本匹配（如“告警”）、比较符（如“> 30”、“<= 10”）或区间（如“10..20”）。未命中的状态使用中性色，缺值保持“状态未知”，不推断为正常。
+      </p>
     </section></template
   >
 </template>

@@ -4,6 +4,16 @@ import InstanceCard from './InstanceCard.vue';
 import type { ComponentInstance } from '../types.ts';
 import { useCanvasViewport } from '../composables/useCanvasViewport.ts';
 import { useCanvasDrag } from '../composables/useCanvasDrag.ts';
+import {
+  screenState,
+  selectedInstance,
+  clearSelection,
+  removeInstance,
+  duplicateInstance,
+} from '../stores/screens.ts';
+import { templateState } from '../stores/templates.ts';
+import { dataState } from '../stores/entities.ts';
+
 const props = defineProps<{ mode: 'editor' | 'viewer' | 'workshop' }>();
 const page = {
   /**
@@ -31,25 +41,22 @@ watch(scale, (value) => emit('scale', value), { immediate: true });
  * @returns 匹配模板；非空断言仅影响类型，缺失引用在运行时仍可能返回 undefined。
  */
 const templateOf = (id: string) => templateState.templates.find((t) => t.id === id)!;
-const previewInstance = computed<ComponentInstance>(() => ({
-  instanceId: 'workshop_preview',
-  templateId: templateState.draft?.id ?? '',
-  position: { x: 0, y: 0, w: logical.value.width, h: logical.value.height },
-  slotBindings: Object.fromEntries(
-    (templateState.draft?.slots ?? []).map((slot, index) => [
-      slot.id,
-      dataState.store.list(slot.schemaType)[index]?.id ?? '',
-    ]),
-  ),
-  controlOverrides: {},
-}));
-import { screenState } from '../stores/screens.ts';
-import { templateState } from '../stores/templates.ts';
-import { dataState } from '../stores/entities.ts';
-import { selectedInstance } from '../stores/screens.ts';
-import { clearSelection } from '../stores/screens.ts';
-import { removeInstance } from '../stores/screens.ts';
-import { duplicateInstance } from '../stores/screens.ts';
+const previewInstance = computed<ComponentInstance>(() => {
+  const previewCtrl = templateState.draft?.controls.find((c) => c.props.workshopPreviewTarget);
+  const previewTarget = previewCtrl?.props.workshopPreviewTarget;
+  return {
+    instanceId: 'workshop_preview',
+    templateId: templateState.draft?.id ?? '',
+    position: { x: 0, y: 0, w: logical.value.width, h: logical.value.height },
+    slotBindings: Object.fromEntries(
+      (templateState.draft?.slots ?? []).map((slot, index) => [
+        slot.id,
+        previewTarget || (dataState.store.list(slot.schemaType)[index]?.id ?? ''),
+      ]),
+    ),
+    controlOverrides: {},
+  };
+});
 </script>
 <template>
   <div class="canvas-area">

@@ -673,6 +673,36 @@ const simulation = demo
             data: { ...record.data, speed, update_time: new Date(now).toISOString() },
           });
         }
+      for (const { id, record } of store.list('projectile')) {
+        if (typeof record.data.altitude === 'number') {
+          const numId = Number(id.replace(/\D/g, '') || 1);
+          const deltaAlt = Math.sin(now / 5000 + numId) * 0.25;
+          const deltaSpd = Math.cos(now / 4000 + numId) * 15;
+          const altitude = Math.max(1.0, Number((record.data.altitude + deltaAlt).toFixed(2)));
+          const speed = Math.max(100, Math.round(record.data.speed + deltaSpd));
+          update({
+            type: 'projectile',
+            id,
+            timestamp: now,
+            data: { ...record.data, altitude, speed, update_time: new Date(now).toISOString() },
+          });
+        }
+      }
+      if (Math.random() < 0.2) {
+        const sampleLogs = [
+          { level: 'info', source: '雷达1', content: '雷达1跟踪波束稳定，目标回波信噪比优于 18dB' },
+          { level: 'info', source: '遥测', content: '遥测主站锁定飞行器下行遥测包，姿态角正常' },
+          { level: 'warn', source: '雷达2', content: '检测到低空杂波波动，已切换多普勒滤波门' },
+          { level: 'info', source: '光测', content: '光电经纬仪视场已捕获目标，交汇测量解算中' },
+        ];
+        const evt = sampleLogs[Math.floor(Math.random() * sampleLogs.length)];
+        update({
+          type: 'event_log',
+          id: '_global',
+          timestamp: now,
+          data: { time: new Date(now).toISOString(), ...evt },
+        });
+      }
       const vessels = store.list('vessel').map((x) => x.record.data);
       update({
         type: 'port_stats',

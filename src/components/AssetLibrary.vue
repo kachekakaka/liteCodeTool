@@ -29,6 +29,7 @@ const controlLabel = (type: string) =>
       table: '表格',
       line: '曲线',
       image: '图片',
+      stream: '消息流',
     }) as Record<string, string>
   )[type] || type;
 /**
@@ -47,6 +48,7 @@ const controlIcon = (type: string) =>
       table: '▤',
       line: '⌁',
       image: '▧',
+      stream: '≋',
     }) as Record<string, string>
   )[type] || '◇';
 /**
@@ -84,7 +86,7 @@ import { addTemplate } from '../stores/screens.ts';
   >
     <div class="aside-title">
       <span>{{ page.mode === 'workshop' ? '原子控件库' : '组件资产库' }}</span
-      ><span class="asset-count">{{ page.mode === 'workshop' ? 7 : assets.length }}</span>
+      ><span class="asset-count">{{ page.mode === 'workshop' ? atoms.length : assets.length }}</span>
     </div>
     <div class="library-scroll">
       <input

@@ -188,7 +188,7 @@
   z-index: 50;
   right: 12px;
   top: 42px;
-  width: min(360px, 95%);
+  width: min(380px, 95%);
   border: 1px solid #2693bb;
   background: #071a30fa;
   box-shadow: 0 10px 35px #000a;
@@ -209,16 +209,34 @@
 .insitu-popover header button {
   font-size: 22px;
 }
-.insitu-popover label {
+.insitu-popover label,
+.insitu-popover .popover-slot-group {
   display: flex;
   flex-direction: column;
   gap: 5px;
   margin: 9px 0;
   font-size: 12px;
 }
+.insitu-popover .slot-label {
+  color: #78a9d0;
+  font-weight: 500;
+}
+.insitu-popover .slot-dual-selects {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
 .insitu-popover select {
   width: 100%;
   font-size: 13px;
+}
+.insitu-popover .slot-target-select {
+  flex: 1.2;
+  min-width: 0;
+}
+.insitu-popover .slot-source-select {
+  flex: 1;
+  min-width: 0;
 }
 .screen-canvas {
   background-image:

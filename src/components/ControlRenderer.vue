@@ -4,7 +4,7 @@ import { usePageMode } from '../composables/usePageMode.ts';
 import { computed, nextTick, ref } from 'vue';
 import type { PropType } from 'vue';
 import type { ComponentInstance, ComponentTemplate, Control } from '../types.ts';
-import { effectiveControl, resolveValue } from '../engine/core.ts';
+import { effectiveControl, resolveValue, evaluateColorRule } from '../engine/core.ts';
 import { checkpoint } from '../stores/screens.ts';
 import LineChart from './LineChart.vue';
 const props = defineProps({
@@ -29,7 +29,7 @@ const value = computed(() =>
 );
 
 const statusColor = computed(
-  () => c.value.props.colorRules?.find((r) => r.value === value.value.raw)?.color ?? '#7995B1',
+  () => evaluateColorRule(value.value.raw, c.value.props.colorRules) ?? '#7995B1',
 );
 
 const stamp = computed(() =>
@@ -96,6 +96,7 @@ function cancelText() {
 
 import ImageControl from './controls/ImageControl.vue';
 import TableControl from './controls/TableControl.vue';
+import StreamControl from './controls/StreamControl.vue';
 </script>
 <template>
   <div
@@ -252,6 +253,12 @@ import TableControl from './controls/TableControl.vue';
     />
     <ImageControl
       v-else-if="c.type === 'image'"
+      :control="control"
+      :instance="instance"
+      :template="template"
+    />
+    <StreamControl
+      v-else-if="c.type === 'stream'"
       :control="control"
       :instance="instance"
       :template="template"

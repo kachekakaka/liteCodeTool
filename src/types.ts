@@ -3,9 +3,9 @@
  */
 export type Scalar = string | number | boolean | null;
 /**
- * 平台支持的原子控件类型，分别对应文本、数值、时间、指示灯、表格、曲线和图片。
+ * 平台支持的原子控件类型，分别对应文本、数值、时间、指示灯、表格、曲线、图片和消息流。
  */
-export type ControlType = 'text' | 'number' | 'time' | 'light' | 'table' | 'line' | 'image';
+export type ControlType = 'text' | 'number' | 'time' | 'light' | 'table' | 'line' | 'image' | 'stream';
 /**
  * 数据模式中的字段元信息，供绑定选择、格式化与接入校验共用。
  */
@@ -147,6 +147,30 @@ export interface Series {
    * 可选曲线显示名称。
    */
   label?: string;
+  /**
+   * 曲线归属的 Y 轴：left 为左轴（默认），right 为右轴。
+   */
+  yAxis?: 'left' | 'right';
+  /**
+   * 可选数据源过滤，用于在多源探测（如雷达/遥测）时限定曲线来源。
+   */
+  filterSource?: string;
+}
+/**
+ * 表格列级状态颜色规则集合。
+ */
+export interface TableColumnRule {
+  /**
+   * 目标列的字段键名。
+   */
+  field: string;
+  /**
+   * 该列匹配的有序颜色规则。
+   */
+  rules: {
+    value: Scalar;
+    color: string;
+  }[];
 }
 /**
  * 各类控件共用的属性集合；属性均可省略，具体默认值由对应控件和校验逻辑决定。
@@ -181,9 +205,29 @@ export interface ControlProps {
    */
   precision?: number | null;
   /**
+   * 曲线历史窗口长度单位：minute 表示分钟（默认），second 表示秒。
+   */
+  lookbackUnit?: 'second' | 'minute';
+  /**
+   * 曲线历史窗口长度，单位秒，允许 10～600。
+   */
+  lookbackSeconds?: number;
+  /**
    * 曲线历史窗口长度，单位分钟，允许 1～60。
    */
   lookbackMinutes?: number;
+  /**
+   * 表格列级状态颜色规则列表。
+   */
+  tableColumnRules?: TableColumnRule[];
+  /**
+   * 消息流最大留存条数，默认 50。
+   */
+  streamMaxItems?: number;
+  /**
+   * 消息流是否自动滚动吸底，默认 true。
+   */
+  streamAutoScroll?: boolean;
   /**
    * 时序曲线相邻点允许连接的最大时间间隔，单位秒。
    */
@@ -277,6 +321,10 @@ export interface ControlProps {
    * 图表选择的数据模式上下文，用于字段与序列配置。
    */
   xAxisSchemaType?: string;
+  /**
+   * 工坊设计态预览目标实体标识（如 P-101），仅在设计态预览渲染生效。
+   */
+  workshopPreviewTarget?: string;
 }
 /**
  * 模板内的原子控件定义，实例可通过 Override 私有化其样式、属性和绑定。
@@ -416,6 +464,10 @@ export interface ComponentInstance {
    * 模板槽位 ID 到具体实体 ID 的映射；没有对应键表示未指派。
    */
   slotBindings: Record<string, string>;
+  /**
+   * 模板槽位 ID 到具体数据来源（如 雷达1、遥测 等传感器站）的映射；省略或空字符串表示全部或自动来源。
+   */
+  slotSourceBindings?: Record<string, string>;
   /**
    * 模板控件 ID 到私有覆盖项的映射。
    */
