@@ -1,4 +1,5 @@
 import http from 'node:http';
+import { networkInterfaces } from 'node:os';
 import { validateEnvelope as validateIncoming } from './ingestion.mjs';
 import { upgradeData } from './data-upgrade.mjs';
 import { createRequire } from 'node:module';
@@ -37,7 +38,7 @@ if (base.includes('liteCodeTool_tmp'))
   throw new Error('持久化数据目录禁止指向临时目录 liteCodeTool_tmp');
 const dataDir = demo ? path.join(base, 'demo') : base;
 const clientDir = path.resolve(process.env.CLIENT_DIR || path.join(root, 'web'));
-const host = process.env.HOST || '127.0.0.1';
+const host = process.env.HOST || '0.0.0.0';
 const port = Number(process.env.PORT || 8787);
 if (!Number.isInteger(port) || port < 1024 || port > 65535)
   throw new Error('端口必须是 1024~65535 的整数');
@@ -110,10 +111,11 @@ async function atomic(pathname, value) {
  * @param pathname - 需要保存的配置文件路径。
  * @param value - 待保存的 JSON 配置。
  * @param match - 现有版本 ETag；星号表示仅允许创建不存在的文件，缺失版本会拒绝覆盖。
+ * @param remove - 是否删除当前资源，默认 false；删除与保存共用队列及版本检查。
  * @returns 兑现为保存后的 data 和 revision 的 Promise。
  * @throws 版本不匹配或目标已存在时返回 412，缺少覆盖前提时返回 428；文件错误继续向上传递。
  */
-async function save(pathname, value, match) {
+async function save(pathname, value, match, remove = false) {
   const previous = queues.get(pathname) || Promise.resolve();
   const task = previous
     .catch(() => {})
@@ -124,11 +126,22 @@ async function save(pathname, value, match) {
       } catch (e) {
         if (e.code !== 'ENOENT') throw e;
       }
-      if (match === '*' ? !!current : !match || match !== current?.revision)
+      if (remove && !current) throw new HttpError(404, '大屏不存在或已删除');
+      if (
+        remove
+          ? !match || match !== current?.revision
+          : match === '*'
+            ? !!current
+            : !match || match !== current?.revision
+      )
         throw new HttpError(
           match ? 412 : 428,
           '配置已被其他窗口修改，请重新载入后保存；本次未覆盖',
         );
+      if (remove) {
+        await unlink(pathname);
+        return;
+      }
       await atomic(pathname, value);
       return read(pathname);
     });
@@ -207,7 +220,7 @@ const inputUnits = await upgradeData(dataDir, {
 // 先检查兼容升级，冲突时不得提前写入缺失模板；已升级目录仍保留首次资源补缺行为。
 await seed('schemas', 'default', builtinSchemas);
 for (const template of builtinTemplates) await seed('templates', template.id, template);
-await seed('screens', 'screen_main', defaultScreen(demo));
+// 大屏仅由一次性升级初始化，已初始化目录允许空列表，删除后不能自动复活。
 await seed('entities', 'snapshot', demo ? demoEnvelopes() : []);
 const schemas = (await read(file('schemas', 'default'))).data;
 const store = new EntityStore();
@@ -228,18 +241,26 @@ const snapshots = () =>
     })),
   );
 /**
- * 按文件名顺序读取指定分组的合法 JSON 资源。
+ * 按文件名顺序读取合法 JSON 资源；忽略列举后已被并发删除的文件，其他读取错误仍上报。
  *
  * @param group - 服务端受控数据分组目录名。
- * @returns 兑现为 data、revision 记录数组的 Promise。
+ * @returns 兑现为仍存在的 data、revision 记录数组的 Promise。
  */
 async function list(group) {
-  return Promise.all(
+  const rows = await Promise.all(
     (await readdir(path.join(dataDir, group)))
       .filter((n) => /^[A-Za-z0-9_-]+\.json$/.test(n))
       .sort()
-      .map((n) => read(path.join(dataDir, group, n))),
+      .map(async (n) => {
+        try {
+          return await read(path.join(dataDir, group, n));
+        } catch (error) {
+          if (error.code === 'ENOENT') return null;
+          throw error;
+        }
+      }),
   );
+  return rows.filter(Boolean);
 }
 /**
  * 读取模板分组并提取模板数据，供引用校验和导入使用。
@@ -264,29 +285,6 @@ function send(res, status, value, revision) {
     ...(revision ? { ETag: revision } : {}),
   });
   res.end(JSON.stringify(value));
-}
-/**
- * 校验 Host 白名单以及写请求来源，允许同源和明确配置的 Vite 开发来源。
- *
- * @param req - 包含 Host 和可选 Origin 头的 HTTP 请求。
- * @returns Host 合法且来源符合规则时为 true；无 Origin 的请求仍需满足 Host 白名单。
- */
-function allowedOrigin(req) {
-  const allowedHosts = (process.env.ALLOWED_HOSTS || '127.0.0.1,localhost')
-    .split(',')
-    .map((h) => h.trim());
-  try {
-    if (!allowedHosts.includes(new URL(`http://${req.headers.host}`).hostname)) return false;
-  } catch {
-    return false;
-  }
-  if (!req.headers.origin) return true;
-  try {
-    const origin = new URL(req.headers.origin);
-    return origin.host === req.headers.host || origin.origin === process.env.DEV_ORIGIN;
-  } catch {
-    return false;
-  }
 }
 /**
  * 读取最多 2 MB 的 JSON 请求体，并检查配置中的保留键及嵌套深度。
@@ -382,16 +380,16 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url || '/', 'http://localhost');
     const parts = decodeURIComponent(url.pathname).split('/').filter(Boolean);
-    if (!allowedOrigin(req)) throw new HttpError(403, '不允许跨站访问');
     if (req.method === 'GET' && url.pathname === '/api/bootstrap') {
-      const templates = await list('templates'),
-        screen = await read(file('screens', 'screen_main'));
+      const templates = await list('templates');
+      const screens = (await list('screens')).sort((a, b) => a.data.id.localeCompare(b.data.id));
+      const screen = screens.find((row) => row.data.id === 'screen_main') || screens[0] || null;
       return send(res, 200, {
         mode: demo ? 'demo' : 'live',
         schemas,
         templates,
         screen,
-        screens: (await list('screens')).map((r) => ({ id: r.data.id, name: r.data.name })),
+        screens: screens.map((r) => ({ id: r.data.id, name: r.data.name })),
         snapshots: snapshots(),
         lastUpdate,
         paused: simulationPaused,
@@ -415,7 +413,14 @@ const server = http.createServer(async (req, res) => {
         const result = await read(file(group, id));
         return send(res, 200, result.data, result.revision);
       }
+      if (group === 'screens' && req.method === 'DELETE' && parts.length === 3) {
+        await save(file(group, id), undefined, req.headers['if-match'], true);
+        res.writeHead(204, { 'Cache-Control': 'no-store' });
+        return res.end();
+      }
       if (['POST', 'PUT'].includes(req.method) && parts.length === 3) {
+        if (req.method === 'PUT' && req.headers['if-match'] === '*')
+          throw new HttpError(412, '保存必须使用读取时的大屏或模板版本');
         let value = await body(req);
         value =
           group === 'templates'
@@ -616,7 +621,10 @@ const server = http.createServer(async (req, res) => {
       'X-Content-Type-Options': 'nosniff',
       'Referrer-Policy': 'no-referrer',
       'Content-Security-Policy':
-        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: http:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: http:; connect-src 'self'; object-src 'none'; base-uri 'none'" +
+        (/^\/screens\/[^/]+\/(view|embed)\/?$/.test(url.pathname)
+          ? ''
+          : "; frame-ancestors 'none'"),
       'Cache-Control': 'no-cache',
     });
     res.end(req.method === 'HEAD' ? undefined : bytes);
@@ -626,13 +634,15 @@ const server = http.createServer(async (req, res) => {
         error: e.status
           ? e.message
           : e.code === 'ENOENT'
-            ? '文件不存在；首次使用请先构建客户端'
+            ? req.url?.startsWith('/api/')
+              ? '资源不存在或已删除'
+              : '文件不存在；首次使用请先构建客户端'
             : '读取或保存失败，原有数据未被覆盖',
       });
   }
 });
 server.on('upgrade', (req, socket, head) => {
-  if (req.url !== '/ws' || !allowedOrigin(req)) return socket.destroy();
+  if (req.url !== '/ws') return socket.destroy();
   sockets.handleUpgrade(req, socket, head, (ws) => sockets.emit('connection', ws, req));
 });
 sockets.on('connection', (ws) => {
@@ -731,8 +741,17 @@ const simulation = demo
   : null;
 server.listen(port, host, () => {
   console.log(
-    `LiteCodeTool ${demo ? '演示数据（独立目录）' : '真实数据（未接入字段显示 --）'}：http://${host}:${port}`,
+    `LiteCodeTool ${demo ? '演示数据（独立目录）' : '真实数据（未接入字段显示 --）'}：http://${host === '0.0.0.0' ? '127.0.0.1' : host}:${port}`,
   );
+  if (host === '0.0.0.0') {
+    const addresses = new Set(
+      Object.values(networkInterfaces())
+        .flat()
+        .filter((row) => row?.family === 'IPv4' && !row.internal)
+        .map((row) => row.address),
+    );
+    for (const address of addresses) console.log(`局域网访问：http://${address}:${port}/screens`);
+  }
   process.send?.({ kind: 'ready', sessionId });
 });
 server.on('error', (e) => {

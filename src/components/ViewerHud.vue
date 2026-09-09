@@ -3,7 +3,7 @@ import { uiState } from '../stores/application.ts';
 import { dataState } from '../stores/entities.ts';
 import { openDrawer } from '../stores/application.ts';
 import { fullscreen } from '../stores/application.ts';
-import { dirty } from '../stores/screens.ts';
+import { dirty, screenState } from '../stores/screens.ts';
 import { useNavigation } from '../composables/useNavigation.ts';
 const { setView, loadScreen, newScreen, importConfiguration, editTemplate, saveTemplate } =
   useNavigation();
@@ -46,6 +46,7 @@ const page = usePageMode();
       ⇄ 监控对象</button
     ><button
       class="button subtle"
+      v-if="!screenState.embedded"
       @click="setView('editor')"
     >
       返回编辑

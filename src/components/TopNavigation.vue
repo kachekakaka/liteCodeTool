@@ -14,6 +14,11 @@ const page = usePageMode();
     </div>
     <nav>
       <RouterLink
+        to="/screens"
+        :class="{ active: page.mode === 'manager' }"
+        >大屏管理</RouterLink
+      >
+      <RouterLink
         :to="screenState.screen ? '/screens/' + screenState.screen.id + '/edit' : '/'"
         :class="{ active: page.mode === 'editor' }"
         >大屏画布</RouterLink

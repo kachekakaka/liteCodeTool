@@ -31,14 +31,17 @@ function currentTemplateRoute() {
  * @returns 当前可用的大屏 ID；本地存储不可用时仍可回退。
  */
 function lastScreen() {
-  if (screenState.screen) return screenState.screen.id;
+  if (screenState.screens.some((row) => row.id === screenState.screen?.id))
+    return screenState.screen!.id;
   try {
     const id = localStorage.getItem('litecode.screen.' + dataState.sourceMode);
     if (screenState.screens.some((s) => s.id === id)) return id!;
   } catch {
     /* 浏览器禁用本地存储时使用默认大屏。 */
   }
-  return defaultScreenId;
+  return screenState.screens.some((row) => row.id === defaultScreenId)
+    ? defaultScreenId
+    : (screenState.screens[0]?.id ?? '');
 }
 
 /**
@@ -63,9 +66,11 @@ export function installGuards(router: Router) {
       if (turn !== sequence) return false;
       const legacy = legacyTarget(to.path, to.hash, to.query.screen);
       if (legacy) return { path: legacy, replace: true };
-      if (to.path === '/' || to.path === '/viewer') {
+      if (to.path === '/') return { path: '/screens', replace: true };
+      if (to.path === '/viewer') {
+        const id = lastScreen();
         return {
-          path: `/screens/${lastScreen()}/${to.path === '/viewer' ? 'view' : 'edit'}`,
+          path: id ? `/screens/${id}/view` : '/screens',
           replace: true,
         };
       }
@@ -74,11 +79,15 @@ export function installGuards(router: Router) {
       const isScreen = !!to.params.screenId;
       const isTemplate = to.meta.mode === 'workshop';
       const isNew = to.name === 'template-new';
+      const embedded = to.meta.embedded === true;
+      const contextChanged = embedded !== screenState.embedded;
       const currentId = isScreen ? screenState.screen?.id : templateState.draft?.id;
       const sameNew =
         isNew && !!templateState.draft && !templateState.templateRevisions[templateState.draft.id];
       const replacing =
-        (isScreen || isTemplate) && !sameNew && replacesDraft(currentId, isNew ? 'new' : id);
+        (isScreen || isTemplate) &&
+        !sameNew &&
+        (replacesDraft(currentId, isNew ? 'new' : id) || (isScreen && contextChanged));
       if (replacing && (screenState.saving || templateState.draftSaving || uiState.importing)) {
         notify('请等待当前保存或导入结束后再切换资源');
         return false;
@@ -91,12 +100,24 @@ export function installGuards(router: Router) {
         return false;
       if (!isNew && (isScreen || isTemplate) && !validResourceId(id))
         throw new ResourceError('资源标识无效', true);
-      if (isScreen && screenState.screen?.id !== id) {
+      if (
+        embedded &&
+        contextChanged &&
+        draftDirty.value &&
+        !confirm('组件工坊有未保存修改，进入嵌入展示将放弃这些修改，是否继续？')
+      )
+        return false;
+      if (
+        isScreen &&
+        (screenState.screen?.id !== id ||
+          contextChanged ||
+          !screenState.screens.some((row) => row.id === id))
+      ) {
         const row = await request<ScreenConfig>(`/api/screens/${encodeURIComponent(id)}`, {
           signal,
         });
         if (turn !== sequence) return false;
-        applyScreen(row.data, row.revision);
+        applyScreen(row.data, row.revision, !embedded);
       } else if (isNew && !sameNew) {
         prepareTemplate();
       } else if (isTemplate && !isNew && templateState.draft?.id !== id) {
@@ -107,6 +128,10 @@ export function installGuards(router: Router) {
         prepareTemplate(row.data);
         templateState.templateRevisions[id] = row.revision;
       }
+      if (contextChanged && !embedded && !isScreen && screenState.savedScreen)
+        applyScreen(JSON.parse(screenState.savedScreen), screenState.screenRevision, false);
+      if (embedded && contextChanged && draftDirty.value) templateState.draft = null;
+      screenState.embedded = embedded;
       resourceState.error = '';
       resourceState.missing = false;
       resourceState.path = to.fullPath;

@@ -910,6 +910,13 @@
         <!-- 工作台 Tab 切换 -->
         <div class="hub-tabs">
           <button
+            class="hub-tab-btn"
+            id="tab-btn-management"
+            onclick="activateTab('management')"
+          >
+            大屏管理与嵌入
+          </button>
+          <button
             class="hub-tab-btn active"
             id="tab-btn-canvas"
             onclick="activateTab('canvas')"
@@ -3522,6 +3529,8 @@
 
       /* Tab 激活 */
       function activateTab(tabId) {
+        document.getElementById('stage-management').style.display =
+          tabId === 'management' ? 'block' : 'none';
         document.querySelectorAll('.hub-tab-btn').forEach((btn) => btn.classList.remove('active'));
         document.getElementById('tab-btn-' + tabId).classList.add('active');
 
@@ -4202,5 +4211,59 @@
         initApp();
       }
     </script>
+    <section
+      id="stage-management"
+      style="display: none; padding: 32px; overflow: auto"
+    >
+      <h1>大屏管理</h1>
+      <p>
+        列表支持搜索、新建、重命名、复制、删除、编辑、预览及复制集成地址。名称可重复，资源 ID
+        不随重命名改变。
+      </p>
+      <p>
+        <button onclick="alert('输入名称后创建空白大屏，保存成功进入独立编辑地址')">
+          ＋ 新建大屏
+        </button>
+        <input
+          placeholder="按名称搜索大屏"
+          aria-label="搜索大屏原型"
+        />
+      </p>
+      <article style="padding: 24px; border: 1px solid #345; margin: 16px 0">
+        <h2>飞行监控 · screen_main</h2>
+        <p>编辑 /screens/screen_main/edit · 展示 /screens/screen_main/view</p>
+        <button onclick="alert('进入编辑器，未保存修改有离开提示')">编辑</button>
+        <button onclick="alert('预览当前大屏')">预览</button>
+        <button onclick="alert('重命名成功同步配置和版本，地址保持不变')">重命名</button>
+        <button onclick="alert('复制已保存配置；大屏和实例 ID 独立，模板继续共享')">复制</button>
+        <button onclick="confirm('删除此大屏？不删除共享模板和数据；允许删除最后一份。')">
+          删除
+        </button>
+        <p>嵌入地址：/screens/screen_main/embed</p>
+      </article>
+      <h2>嵌入展示交互</h2>
+      <p>
+        只保留画布、实时状态、全屏与监控对象切换。可选择目标及来源；只在当前页面生效，刷新恢复已保存默认值。
+      </p>
+      <label
+        >目标
+        <select>
+          <option>P-101</option>
+          <option>P-102</option>
+        </select></label
+      >
+      <label
+        >来源
+        <select>
+          <option>自动</option>
+          <option>雷达1</option>
+          <option>雷达2</option>
+        </select></label
+      >
+      <p>
+        没有保存、编辑文字、返回编辑器入口；不同 iframe
+        的选择互不影响。空列表引导新建，失效地址明确显示资源不存在。
+      </p>
+    </section>
   </body>
 </html>

@@ -26,6 +26,15 @@ export function useEditorKeyboard(mode: 'editor' | 'workshop' | 'viewer') {
    * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
    */
   function keyboard(event: KeyboardEvent) {
+    if (screenState.embedded) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's')
+        event.preventDefault();
+      if (event.key === 'Escape') {
+        uiState.drawer = false;
+        uiState.help = false;
+      }
+      return;
+    }
     if (resourceState.loading || uiState.importing || uiState.creating) return;
     if (uiState.help) {
       if (event.key === 'Escape') uiState.help = false;

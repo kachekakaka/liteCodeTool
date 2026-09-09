@@ -25,7 +25,7 @@ const retry = () =>
  * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
  */
 function beforeUnload(event: BeforeUnloadEvent) {
-  if (dirty.value || draftDirty.value) event.preventDefault();
+  if (!route.meta.embedded && (dirty.value || draftDirty.value)) event.preventDefault();
 }
 onMounted(() => {
   window.addEventListener('beforeunload', beforeUnload);
@@ -79,6 +79,7 @@ onUnmounted(() => {
           >
             重新载入</button
           ><RouterLink
+            v-if="!route.meta.embedded"
             class="button"
             to="/"
             >返回大屏</RouterLink

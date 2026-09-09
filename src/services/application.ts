@@ -61,7 +61,7 @@ interface Bootstrap {
      * 默认大屏的 ETag。
      */
     revision: string;
-  };
+  } | null;
   /**
    * 实体与全局底账数据包，不作为历史曲线样本。
    */
@@ -99,7 +99,7 @@ export function initialize(): Promise<void> {
         data.templates.map((row) => [row.data.id, row.revision]),
       );
       screenState.screens = data.screens;
-      defaultScreenId = data.screen.data.id;
+      defaultScreenId = data.screen?.data.id ?? '';
       for (const envelope of data.snapshots) dataState.store.apply(envelope, true);
       initialized = true;
       startRealtime();

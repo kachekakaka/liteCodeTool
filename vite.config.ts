@@ -9,7 +9,8 @@ export default defineConfig({
     watch: {
       ignored: ['**/.vscode/**', '**/*.tmp', '**/docs/**', '**/archive/**', '**/vendor/**'],
     },
-    host: '127.0.0.1',
+    host: '0.0.0.0',
+    allowedHosts: true,
     port: Number(process.env.VITE_PORT || 5173),
     strictPort: true,
     proxy: {

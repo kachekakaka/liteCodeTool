@@ -13,6 +13,7 @@ import { dataState } from './entities.ts';
 import { uid } from '../utils/identity.ts';
 import { notify } from './application.ts';
 import { request } from '../services/http.ts';
+import { copyScreenConfiguration } from '../utils/screens.ts';
 /** 当前大屏内存草稿、服务器保存基线及最多 50 步撤销记录；切换功能页时共享此状态。 */
 export const screenState = reactive({
   screen: null as ScreenConfig | null,
@@ -20,6 +21,7 @@ export const screenState = reactive({
   savedScreen: '',
   screenRevision: '',
   saving: false,
+  embedded: false,
   selectedInstance: '',
   selectedControl: '',
   zoom: 'fit',
@@ -28,7 +30,10 @@ export const screenState = reactive({
 });
 /** 通过与最近成功保存的 JSON 快照比较判断未保存修改，实时数据变化不参与比较。 */
 export const dirty = computed(
-  () => !!screenState.screen && JSON.stringify(screenState.screen) !== screenState.savedScreen,
+  () =>
+    !screenState.embedded &&
+    !!screenState.screen &&
+    JSON.stringify(screenState.screen) !== screenState.savedScreen,
 );
 export const selectedInstance = computed(() =>
   screenState.screen?.components.find((i) => i.instanceId === screenState.selectedInstance),
@@ -39,7 +44,7 @@ export const selectedInstance = computed(() =>
  * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
  */
 export function checkpoint(): void {
-  if (!screenState.screen) return;
+  if (!screenState.screen || screenState.embedded) return;
   screenState.undo.push(JSON.stringify(screenState.screen));
   if (screenState.undo.length > 50) screenState.undo.shift();
   screenState.redo = [];
@@ -90,9 +95,10 @@ function select(instanceId: string) {
  *
  * @param data - 服务器返回的大屏配置，将直接作为当前草稿。
  * @param revision - 服务器 ETag，用于下一次保存的并发版本校验。
+ * @param remember - 是否记录最近访问的大屏，嵌入加载使用 false。
  * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
  */
-export function applyScreen(data: ScreenConfig, revision: string): void {
+export function applyScreen(data: ScreenConfig, revision: string, remember = true): void {
   data = normalizeScreen(data, templateState.templates, dataState.store, dataState.schemas);
   screenState.screen = data;
   screenState.savedScreen = JSON.stringify(data);
@@ -101,7 +107,7 @@ export function applyScreen(data: ScreenConfig, revision: string): void {
   screenState.redo = [];
   clearSelection();
   try {
-    localStorage.setItem('litecode.screen.' + dataState.sourceMode, data.id);
+    if (remember) localStorage.setItem('litecode.screen.' + dataState.sourceMode, data.id);
   } catch {}
 }
 /**
@@ -121,7 +127,7 @@ export async function loadScreen(id: string): Promise<void> {
  * @returns 保存流程结束的 Promise；失败以界面通知反馈，无业务返回值。
  */
 export async function saveScreen(): Promise<void> {
-  if (!screenState.screen || screenState.saving) return;
+  if (!screenState.screen || screenState.saving || screenState.embedded) return;
   const submitted = normalizeScreen(
     screenState.screen,
     templateState.templates,
@@ -152,11 +158,21 @@ export async function saveScreen(): Promise<void> {
 /**
  * 确认放弃旧草稿后输入名称，创建空白大屏并应用服务器返回值。
  *
+ * @param suppliedName - 管理表单提供的名称；省略时弹出传统输入框。
+ * @param discardConfirmed - 管理表单已明确确认放弃草稿时为 true，默认 false。
  * @returns 成功时兑现为新大屏 ID；用户取消、名称为空或保存失败时为 undefined。
  */
-export async function newScreen(): Promise<string | undefined> {
-  if (dirty.value && !confirm('新建前将离开当前大屏，未保存修改不会保留。是否继续？')) return;
-  const name = prompt('输入新大屏名称', '新建监控大屏');
+export async function newScreen(
+  suppliedName?: string,
+  discardConfirmed = false,
+): Promise<string | undefined> {
+  if (
+    dirty.value &&
+    !discardConfirmed &&
+    !confirm('新建前将离开当前大屏，未保存修改不会保留。是否继续？')
+  )
+    return;
+  const name = suppliedName ?? prompt('输入新大屏名称', '新建监控大屏');
   if (!name?.trim()) return;
   const screen: ScreenConfig = {
     id: uid('screen'),
@@ -177,6 +193,79 @@ export async function newScreen(): Promise<string | undefined> {
   } catch (e) {
     notify((e as Error).message, true);
   }
+}
+
+/**
+ * 刷新管理列表，保持当前编辑草稿不变。
+ * @returns 列表刷新完成的 Promise；请求失败时拒绝。
+ */
+export async function refreshScreens(): Promise<void> {
+  const { data } = await request<{ data: ScreenConfig; revision: string }[]>('/api/screens');
+  screenState.screens = data.map(({ data: screen }) => ({ id: screen.id, name: screen.name }));
+}
+
+/**
+ * 按最新服务器版本重命名；调用方先处理当前资源的脏草稿并锁定交互。
+ * @param id - 大屏 ID。
+ * @param name - 去除首尾空白后的非空名称。
+ * @returns 保存完成的 Promise；冲突或请求失败时拒绝，不修改本地状态。
+ */
+export async function renameScreen(id: string, name: string): Promise<void> {
+  if (!name.trim()) throw new Error('大屏名称不能为空');
+  const url = `/api/screens/${encodeURIComponent(id)}`;
+  const current = await request<ScreenConfig>(url);
+  const result = await request<ScreenConfig>(url, {
+    method: 'PUT',
+    headers: { 'If-Match': current.revision },
+    body: JSON.stringify({ ...current.data, name: name.trim() }),
+  });
+  if (screenState.screen?.id === id) applyScreen(result.data, result.revision);
+  const item = screenState.screens.find((row) => row.id === id);
+  if (item) item.name = result.data.name;
+}
+
+/**
+ * 复制已保存的大屏，不复制共享模板；调用方先确认放弃源资源的未保存修改。
+ * @param id - 源大屏 ID。
+ * @param name - 副本名称。
+ * @returns 新大屏 ID；请求失败时拒绝，保留原草稿。
+ */
+export async function copyScreen(id: string, name: string): Promise<string> {
+  if (!name.trim()) throw new Error('大屏名称不能为空');
+  const source = await request<ScreenConfig>(`/api/screens/${encodeURIComponent(id)}`);
+  const copied = copyScreenConfiguration(source.data, name, () => uid('screen'));
+  const result = await request<ScreenConfig>(`/api/screens/${copied.id}`, {
+    method: 'POST',
+    headers: { 'If-None-Match': '*' },
+    body: JSON.stringify(copied),
+  });
+  screenState.screens.push({ id: result.data.id, name: result.data.name });
+  if (screenState.screen?.id === id) applyScreen(source.data, source.revision);
+  return result.data.id;
+}
+
+/**
+ * 条件删除大屏，成功后清理列表、当前资源及最近访问记录。
+ * @param id - 要删除的大屏 ID。
+ * @returns 删除完成的 Promise；失败时保留本地状态。
+ */
+export async function deleteScreen(id: string): Promise<void> {
+  const url = `/api/screens/${encodeURIComponent(id)}`;
+  const current = await request<ScreenConfig>(url);
+  await request<void>(url, { method: 'DELETE', headers: { 'If-Match': current.revision } });
+  screenState.screens = screenState.screens.filter((row) => row.id !== id);
+  if (screenState.screen?.id === id) {
+    screenState.screen = null;
+    screenState.savedScreen = '';
+    screenState.screenRevision = '';
+    screenState.undo = [];
+    screenState.redo = [];
+    clearSelection();
+  }
+  try {
+    const key = 'litecode.screen.' + dataState.sourceMode;
+    if (localStorage.getItem(key) === id) localStorage.removeItem(key);
+  } catch {}
 }
 /**
  * 下载当前大屏及其引用模板组成的 JSON 配置包，不要求先保存。

@@ -101,6 +101,7 @@ const geometry = (control: Control) => {
  * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
  */
 function startEditTitle() {
+  if (screenState.embedded) return;
   editingTitle.value = true;
   titleDraft.value = props.instance.title ?? props.template.name;
   nextTick(() => {
@@ -115,6 +116,7 @@ function startEditTitle() {
  * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
  */
 function commitTitle() {
+  if (screenState.embedded) return;
   if (!editingTitle.value) return;
   editingTitle.value = false;
   const next = titleDraft.value.trim();
@@ -145,6 +147,7 @@ function cancelTitle() {
  * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
  */
 function startEditSubTitle() {
+  if (screenState.embedded) return;
   editingSubTitle.value = true;
   subTitleDraft.value =
     props.instance.subTitle !== undefined
@@ -162,6 +165,7 @@ function startEditSubTitle() {
  * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
  */
 function commitSubTitle() {
+  if (screenState.embedded) return;
   if (!editingSubTitle.value) return;
   editingSubTitle.value = false;
   const next = subTitleDraft.value.trim();

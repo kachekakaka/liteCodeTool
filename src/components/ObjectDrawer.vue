@@ -90,6 +90,7 @@ function name(type: string, id?: string): string {
  * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
  */
 function renameScreen(event: Event) {
+  if (screenState.embedded) return;
   if (screenState.screen) {
     checkpoint();
     screenState.screen.name = (event.target as HTMLInputElement).value;
@@ -104,6 +105,7 @@ function renameScreen(event: Event) {
  * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
  */
 function updateInstanceTitle(instanceId: string, event: Event) {
+  if (screenState.embedded) return;
   const inst = screenState.screen?.components.find((i) => i.instanceId === instanceId);
   if (inst) {
     checkpoint();
@@ -115,6 +117,7 @@ watch(
   () => uiState.drawer,
   async (open) => {
     if (open) {
+      if (screenState.embedded) tab.value = 'objects';
       previousFocus = document.activeElement as HTMLElement;
       const group = groups.value[0],
         slot = group?.template?.slots[0];
@@ -196,7 +199,10 @@ const choose = (id: string) => retarget(target.value.instanceId, target.value.sl
           ×
         </button>
       </header>
-      <div class="drawer-tabs">
+      <div
+        v-if="!screenState.embedded"
+        class="drawer-tabs"
+      >
         <button
           :class="{ active: tab === 'objects' }"
           @click="tab = 'objects'"
@@ -346,9 +352,16 @@ const choose = (id: string) => retarget(target.value.instanceId, target.value.sl
         </div>
       </div>
       <footer>
-        <span :class="dirty ? 'dirty-state' : 'muted'">{{
-          dirty ? '● 当前大屏有未保存修改' : '已与默认配置一致'
-        }}</span>
+        <span
+          v-if="screenState.embedded"
+          class="muted"
+          >切换仅当前页面生效，刷新恢复默认配置</span
+        >
+        <span
+          v-else
+          :class="dirty ? 'dirty-state' : 'muted'"
+          >{{ dirty ? '● 当前大屏有未保存修改' : '已与默认配置一致' }}</span
+        >
         <div>
           <button
             class="button"
@@ -356,6 +369,7 @@ const choose = (id: string) => retarget(target.value.instanceId, target.value.sl
           >
             恢复默认配置</button
           ><button
+            v-if="!screenState.embedded"
             class="button primary"
             :disabled="screenState.saving || !dirty"
             @click="saveScreen"

@@ -10,6 +10,12 @@ export const router = createRouter({
       component: WorkspaceLayout,
       children: [
         {
+          path: 'screens',
+          name: 'screen-manager',
+          component: () => import('../views/ScreenManagerView.vue'),
+          meta: { mode: 'manager' },
+        },
+        {
           path: '',
           /**
            * 延迟加载根入口的大屏编辑页面，最终资源地址由守卫标准化。
@@ -86,6 +92,12 @@ export const router = createRouter({
        */
       component: () => import('../views/ScreenViewerView.vue'),
       meta: { mode: 'viewer' },
+    },
+    {
+      path: '/screens/:screenId/embed',
+      name: 'screen-embed',
+      component: () => import('../views/ScreenViewerView.vue'),
+      meta: { mode: 'viewer', embedded: true },
     },
     {
       path: '/:pathMatch(.*)*',

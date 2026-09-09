@@ -94,7 +94,7 @@ const child = spawn(
     cwd: root,
     env: {
       ...process.env,
-      HOST: host,
+      HOST: process.env.HOST || '0.0.0.0',
       PORT: String(port),
       DATA_DIR: dataDir,
       INGEST_TOKEN: token,
