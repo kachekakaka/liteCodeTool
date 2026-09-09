@@ -932,6 +932,13 @@
           </button>
           <button
             class="hub-tab-btn"
+            id="tab-btn-targets"
+            onclick="activateTab('targets')"
+          >
+            目标与来源契约
+          </button>
+          <button
+            class="hub-tab-btn"
             id="tab-btn-simulator"
             onclick="activateTab('simulator')"
           >
@@ -1722,7 +1729,15 @@
                       class="insitu-popover"
                       id="popover_inst_02"
                     >
-                      <div style="font-size: 11px; color: var(--lc-cyan); font-weight: 700; border-bottom: 1px solid var(--lc-border-subtle); padding-bottom: 4px;">
+                      <div
+                        style="
+                          font-size: 11px;
+                          color: var(--lc-cyan);
+                          font-weight: 700;
+                          border-bottom: 1px solid var(--lc-border-subtle);
+                          padding-bottom: 4px;
+                        "
+                      >
                         🎯 目标重定向 (Target):
                       </div>
                       <div
@@ -1745,14 +1760,71 @@
                       >
                         <span>浙岱渔0455</span> <span style="color: var(--lc-warning)">● 作业</span>
                       </div>
-                      <div style="font-size: 11px; color: var(--lc-cyan); font-weight: 700; border-bottom: 1px solid var(--lc-border-subtle); padding-bottom: 4px; margin-top: 4px;">
+                      <div
+                        style="
+                          font-size: 11px;
+                          color: var(--lc-cyan);
+                          font-weight: 700;
+                          border-bottom: 1px solid var(--lc-border-subtle);
+                          padding-bottom: 4px;
+                          margin-top: 4px;
+                        "
+                      >
                         📡 传感器来源 (Source 权威):
                       </div>
-                      <div style="display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 0;">
-                        <span class="insitu-tag active" style="font-size: 10px; padding: 2px 6px; border-radius: 3px; background: rgba(34,211,238,0.2); border: 1px solid var(--lc-cyan); color: var(--lc-cyan); cursor: pointer;">雷达1 (默认)</span>
-                        <span class="insitu-tag" style="font-size: 10px; padding: 2px 6px; border-radius: 3px; background: rgba(255,255,255,0.05); border: 1px solid var(--lc-border-subtle); color: var(--lc-secondary); cursor: pointer;">雷达2</span>
-                        <span class="insitu-tag" style="font-size: 10px; padding: 2px 6px; border-radius: 3px; background: rgba(255,255,255,0.05); border: 1px solid var(--lc-border-subtle); color: var(--lc-secondary); cursor: pointer;">遥测1</span>
-                        <span class="insitu-tag" style="font-size: 10px; padding: 2px 6px; border-radius: 3px; background: rgba(255,255,255,0.05); border: 1px solid var(--lc-border-subtle); color: var(--lc-secondary); cursor: pointer;">光测1</span>
+                      <div style="display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 0">
+                        <span
+                          class="insitu-tag active"
+                          style="
+                            font-size: 10px;
+                            padding: 2px 6px;
+                            border-radius: 3px;
+                            background: rgba(34, 211, 238, 0.2);
+                            border: 1px solid var(--lc-cyan);
+                            color: var(--lc-cyan);
+                            cursor: pointer;
+                          "
+                          >雷达1 (默认)</span
+                        >
+                        <span
+                          class="insitu-tag"
+                          style="
+                            font-size: 10px;
+                            padding: 2px 6px;
+                            border-radius: 3px;
+                            background: rgba(255, 255, 255, 0.05);
+                            border: 1px solid var(--lc-border-subtle);
+                            color: var(--lc-secondary);
+                            cursor: pointer;
+                          "
+                          >雷达2</span
+                        >
+                        <span
+                          class="insitu-tag"
+                          style="
+                            font-size: 10px;
+                            padding: 2px 6px;
+                            border-radius: 3px;
+                            background: rgba(255, 255, 255, 0.05);
+                            border: 1px solid var(--lc-border-subtle);
+                            color: var(--lc-secondary);
+                            cursor: pointer;
+                          "
+                          >遥测1</span
+                        >
+                        <span
+                          class="insitu-tag"
+                          style="
+                            font-size: 10px;
+                            padding: 2px 6px;
+                            border-radius: 3px;
+                            background: rgba(255, 255, 255, 0.05);
+                            border: 1px solid var(--lc-border-subtle);
+                            color: var(--lc-secondary);
+                            cursor: pointer;
+                          "
+                          >光测1</span
+                        >
                       </div>
                       <div
                         style="
@@ -2763,20 +2835,82 @@
                 style="margin: -20px -20px 16px -20px"
               >
                 <div class="lc-card-title">🌊 [模板] 消息流与时序大盘</div>
-                <span class="asset-badge" style="border-color: var(--lc-cyan); color: var(--lc-cyan)">新原子扩展</span>
+                <span
+                  class="asset-badge"
+                  style="border-color: var(--lc-cyan); color: var(--lc-cyan)"
+                  >新原子扩展</span
+                >
               </div>
-              <div style="font-size: 12px; color: var(--lc-secondary); line-height: 1.6; display: flex; flex-direction: column; gap: 8px;">
-                <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--lc-border-subtle); border-radius: 4px; padding: 8px;">
-                  <div style="color: var(--lc-cyan); font-weight: 600; font-size: 11px; margin-bottom: 4px;">🌊 消息流 (StreamControl) 预览</div>
-                  <div style="font-family: var(--font-mono); font-size: 11px; display: flex; flex-direction: column; gap: 3px;">
-                    <div><span style="color: var(--lc-alert)">[ALERT]</span> 17:08:12 弹目标 P-105 航速异常突增 (+12.4节)</div>
-                    <div><span style="color: var(--lc-ok)">[INFO]</span> 17:08:15 传感器【雷达3】建链成功 (质量 98%)</div>
-                    <div><span style="color: var(--lc-warning)">[WARN]</span> 17:08:19 传感器【光测2】信噪比接近下限阈值</div>
+              <div
+                style="
+                  font-size: 12px;
+                  color: var(--lc-secondary);
+                  line-height: 1.6;
+                  display: flex;
+                  flex-direction: column;
+                  gap: 8px;
+                "
+              >
+                <div
+                  style="
+                    background: rgba(0, 0, 0, 0.3);
+                    border: 1px solid var(--lc-border-subtle);
+                    border-radius: 4px;
+                    padding: 8px;
+                  "
+                >
+                  <div
+                    style="
+                      color: var(--lc-cyan);
+                      font-weight: 600;
+                      font-size: 11px;
+                      margin-bottom: 4px;
+                    "
+                  >
+                    🌊 消息流 (StreamControl) 预览
+                  </div>
+                  <div
+                    style="
+                      font-family: var(--font-mono);
+                      font-size: 11px;
+                      display: flex;
+                      flex-direction: column;
+                      gap: 3px;
+                    "
+                  >
+                    <div>
+                      <span style="color: var(--lc-alert)">[ALERT]</span> 17:08:12 弹目标 P-105
+                      航速异常突增 (+12.4节)
+                    </div>
+                    <div>
+                      <span style="color: var(--lc-ok)">[INFO]</span> 17:08:15
+                      传感器【雷达3】建链成功 (质量 98%)
+                    </div>
+                    <div>
+                      <span style="color: var(--lc-warning)">[WARN]</span> 17:08:19
+                      传感器【光测2】信噪比接近下限阈值
+                    </div>
                   </div>
                 </div>
-                <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--lc-border-subtle); border-radius: 4px; padding: 8px;">
-                  <div style="color: var(--lc-cyan); font-weight: 600; font-size: 11px; margin-bottom: 4px;">📈 曲线 (LineChart) 双 Y 轴与秒级窗口</div>
-                  <div style="font-size: 11px; color: var(--lc-muted);">
+                <div
+                  style="
+                    background: rgba(0, 0, 0, 0.3);
+                    border: 1px solid var(--lc-border-subtle);
+                    border-radius: 4px;
+                    padding: 8px;
+                  "
+                >
+                  <div
+                    style="
+                      color: var(--lc-cyan);
+                      font-weight: 600;
+                      font-size: 11px;
+                      margin-bottom: 4px;
+                    "
+                  >
+                    📈 曲线 (LineChart) 双 Y 轴与秒级窗口
+                  </div>
+                  <div style="font-size: 11px; color: var(--lc-muted)">
                     左轴高度(m) + 右轴速度(m/s) · 支持 10s~600s 自适应切片，点位绝不外溢
                   </div>
                 </div>
@@ -3074,7 +3208,112 @@
         初始化不等待页面挂载。旧 hash 地址转换到标准路由，直接打开、刷新和前进后退保持资源身份一致。
       </p>
     </section>
+    <section
+      id="stage-targets"
+      style="display: none; padding: 32px; overflow: auto; flex-direction: column; gap: 16px"
+    >
+      <h1>目标与来源：两处入口共享指派</h1>
+      <p>
+        同一批号的各来源合并为一个业务目标。下面两处选择同步；槽位指派作用于所有关联控件，保存后成为默认配置，支持撤销和恢复最近保存。
+      </p>
+      <div style="display: flex; gap: 32px; flex-wrap: wrap">
+        <fieldset>
+          <legend>大屏画布就地面板</legend>
+          <label
+            >目标
+            <select
+              aria-label="契约画布目标"
+              data-target-contract="target"
+              onchange="syncTargetContract(this)"
+            >
+              <option>P-101</option>
+              <option>P-102</option>
+            </select></label
+          >
+          <label
+            >来源
+            <select
+              aria-label="契约画布来源"
+              data-target-contract="source"
+              onchange="syncTargetContract(this)"
+            >
+              <option value="inherit">跟随曲线配置</option>
+              <option value="auto">自动选择（单一来源）</option>
+              <option value="雷达2">雷达2</option>
+              <option value="遥测1">遥测1</option>
+              <option value="missing">缺失来源（验收）</option>
+            </select></label
+          >
+        </fieldset>
+        <fieldset>
+          <legend>大屏右侧属性面板</legend>
+          <label
+            >目标
+            <select
+              aria-label="契约右侧目标"
+              data-target-contract="target"
+              onchange="syncTargetContract(this)"
+            >
+              <option>P-101</option>
+              <option>P-102</option>
+            </select></label
+          >
+          <label
+            >来源
+            <select
+              aria-label="契约右侧来源"
+              data-target-contract="source"
+              onchange="syncTargetContract(this)"
+            >
+              <option value="inherit">跟随曲线配置</option>
+              <option value="auto">自动选择（单一来源）</option>
+              <option value="雷达2">雷达2</option>
+              <option value="遥测1">遥测1</option>
+              <option value="missing">缺失来源（验收）</option>
+            </select></label
+          >
+        </fieldset>
+      </div>
+      <p id="target-contract-result">P-101：跟随各曲线来源配置。</p>
+      <h2>工坊临时预览</h2>
+      <p>
+        仅改变当前曲线相关槽位的试看目标与来源，不改变其他模式控件，不触发未保存状态，不进入模板、实例和导出包。新增、改名、删除共享槽位只在工坊执行。
+      </p>
+      <h2>高度与速度</h2>
+      <p>
+        选择飞行目标模式后提供高度 / km、速度 / km/h，可分别使用左、右 Y 轴；船舶模式保持航速 /
+        节。切换兼容模式保留曲线轴向。大屏模板尚无飞行目标槽位时，引导用户到工坊配置。
+      </p>
+      <h2>消息流实例</h2>
+      <p>
+        保留条数与滚动开关属于实例私有覆盖，修改立即生效，不影响其他实例。下调条数立即裁剪旧消息，切换模式清空旧消息。
+      </p>
+    </section>
     <script>
+      /**
+       * 同步契约页两处选择，并展示单来源或缺失结果。
+       * @param input - 修改的目标或来源选择框。
+       * @returns 无返回值，只更新原型演示状态。
+       */
+      function syncTargetContract(input) {
+        document
+          .querySelectorAll('[data-target-contract="' + input.dataset.targetContract + '"]')
+          .forEach((select) => {
+            select.value = input.value;
+          });
+        const target = document.querySelector('[data-target-contract="target"]').value;
+        const source = document.querySelector('[data-target-contract="source"]').value;
+        const result =
+          source === 'inherit'
+            ? '跟随各曲线来源配置'
+            : source === 'auto'
+              ? '实际来源：雷达1（单一来源，不拼接历史）'
+              : source === 'missing'
+                ? '该目标暂无所选来源数据，保持选择并留白'
+                : '实际来源：' + source;
+        document.getElementById('target-contract-result').textContent =
+          target + '：' + result + '。';
+      }
       /* 核心数据模式 */
       const DATA_SCHEMAS = [
         {
@@ -3294,6 +3533,8 @@
           tabId === 'simulator' ? 'flex' : 'none';
         document.getElementById('stage-routing').style.display =
           tabId === 'routing' ? 'flex' : 'none';
+        document.getElementById('stage-targets').style.display =
+          tabId === 'targets' ? 'flex' : 'none';
 
         const capsule = document.getElementById('mode-capsule-bar');
         if (capsule) capsule.style.display = tabId === 'canvas' ? 'flex' : 'none';

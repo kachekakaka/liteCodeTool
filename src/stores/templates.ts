@@ -1,5 +1,5 @@
 import { computed, reactive } from 'vue';
-import { clone, validateTemplate } from '../engine/core.ts';
+import { clone, validateTemplate, normalizeTemplate } from '../engine/core.ts';
 import type { ComponentTemplate } from '../types.ts';
 import { dataState } from './entities.ts';
 import { uid } from '../utils/identity.ts';
@@ -12,6 +12,8 @@ export const templateState = reactive({
   draft: null as ComponentTemplate | null,
   savedDraft: '',
   draftSaving: false,
+  /** 工坊会话内按控件和槽位保存的预览指派，不属于模板内容。 */
+  preview: {} as Record<string, { target: string; source: string | null }>,
 });
 export const draftDirty = computed(
   () => !!templateState.draft && JSON.stringify(templateState.draft) !== templateState.savedDraft,
@@ -26,7 +28,7 @@ export async function saveTemplate(asNew = false): Promise<string | undefined> {
   if (!templateState.draft || templateState.draftSaving) return;
   const before = JSON.stringify(templateState.draft);
   const draftId = templateState.draft.id;
-  const data = clone(templateState.draft);
+  const data = normalizeTemplate(templateState.draft);
   if (asNew) {
     data.id = uid('tpl');
     data.name += ' · 副本';
@@ -74,8 +76,20 @@ export async function saveTemplate(asNew = false): Promise<string | undefined> {
  * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
  */
 export function prepareTemplate(template?: ComponentTemplate): void {
+  templateState.preview = {};
+  for (const control of template?.controls ?? [])
+    if (control.props.workshopPreviewTarget) {
+      for (const slot of template!.slots.filter((s) =>
+        control.props.series?.some((series) => series.slotId === s.id),
+      )) {
+        templateState.preview[`${control.id}:${slot.id}`] = {
+          target: control.props.workshopPreviewTarget,
+          source: null,
+        };
+      }
+    }
   templateState.draft = template
-    ? clone(template)
+    ? normalizeTemplate(template)
     : {
         id: uid('tpl'),
         name: '新建组件模板',

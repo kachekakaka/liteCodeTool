@@ -67,9 +67,13 @@ if (diagnostics.length)
   );
 await fs.mkdir(path.join(out, 'server'), { recursive: true });
 // 发布端引用已编译核心；开发端保留对 TypeScript 源码的引用，便于断点调试。
-let server = await fs.readFile(path.join(root, 'server/index.mjs'), 'utf8');
-server = server.replace("'../src/engine/core.ts'", "'../engine/core.js'");
-await fs.writeFile(path.join(out, 'server/index.mjs'), server);
+for (const name of ['index.mjs', 'ingestion.mjs', 'data-upgrade.mjs']) {
+  const server = (await fs.readFile(path.join(root, 'server', name), 'utf8')).replaceAll(
+    "'../src/engine/core.ts'",
+    "'../engine/core.js'",
+  );
+  await fs.writeFile(path.join(out, 'server', name), server);
+}
 await fs.copyFile(path.join(root, 'server/defaults.mjs'), path.join(out, 'server/defaults.mjs'));
 await fs.mkdir(path.join(out, 'vendor'), { recursive: true });
 for (const name of ['ws.cjs', 'ws.LICENSE'])

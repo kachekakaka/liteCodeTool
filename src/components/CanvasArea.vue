@@ -13,6 +13,7 @@ import {
 } from '../stores/screens.ts';
 import { templateState } from '../stores/templates.ts';
 import { dataState } from '../stores/entities.ts';
+import { extractUniqueTargets } from '../engine/core.ts';
 
 const props = defineProps<{ mode: 'editor' | 'viewer' | 'workshop' }>();
 const page = {
@@ -42,16 +43,18 @@ watch(scale, (value) => emit('scale', value), { immediate: true });
  */
 const templateOf = (id: string) => templateState.templates.find((t) => t.id === id)!;
 const previewInstance = computed<ComponentInstance>(() => {
-  const previewCtrl = templateState.draft?.controls.find((c) => c.props.workshopPreviewTarget);
-  const previewTarget = previewCtrl?.props.workshopPreviewTarget;
   return {
     instanceId: 'workshop_preview',
     templateId: templateState.draft?.id ?? '',
     position: { x: 0, y: 0, w: logical.value.width, h: logical.value.height },
     slotBindings: Object.fromEntries(
-      (templateState.draft?.slots ?? []).map((slot, index) => [
+      (templateState.draft?.slots ?? []).map((slot) => [
         slot.id,
-        previewTarget || (dataState.store.list(slot.schemaType)[index]?.id ?? ''),
+        extractUniqueTargets(
+          dataState.store,
+          slot.schemaType,
+          dataState.schemas.find((s) => s.type === slot.schemaType),
+        )[0]?.id ?? '',
       ]),
     ),
     controlOverrides: {},

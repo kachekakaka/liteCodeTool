@@ -265,6 +265,7 @@ export function formatScalar(value: unknown, precision?: number | null, datetime
  * @param type - 数据模式标识。
  * @param id - 实体标识（如批号或 MMSI）。
  * @param source - 可选物理数据来源（如 雷达1、遥测1 等）。
+ * @param schema - 可选模式元数据，用于确定业务目标和来源字段。
  * @returns 匹配到的实体记录，未匹配时返回 undefined。
  */
 export function resolveEntityRecord(
@@ -272,26 +273,135 @@ export function resolveEntityRecord(
   type: string | undefined,
   id: string | undefined,
   source?: string,
+  schema?: Schema,
 ): EntityRecord | undefined {
+  return resolveEntityEntry(store, type, id, source, schema)?.record;
+}
+
+/**
+ * 读取记录对应的业务目标，缺少业务字段时保留记录 ID。
+ * @param id - 实体记录标识。
+ * @param record - 实体记录。
+ * @param type - 数据模式标识。
+ * @param schema - 可选模式元数据。
+ * @returns 业务目标标识。
+ */
+export function entityTarget(
+  id: string,
+  record: EntityRecord,
+  type: string,
+  schema?: Schema,
+): string {
+  const field = schema?.targetIdField ?? (type === 'projectile' ? 'batch_no' : schema?.idField);
+  return String((field && record.data[field]) || id);
+}
+
+/**
+ * 按业务目标和来源定位记录；自动模式优先同名记录，否则使用稳定 ID 顺序。
+ * @param store - 实体池。
+ * @param type - 模式标识。
+ * @param id - 目标或兼容旧记录标识。
+ * @param source - 具体来源；空值表示自动选取单条记录。
+ * @param schema - 可选模式元数据。
+ * @returns 记录 ID 与实体记录；指定来源缺失或存在歧义时返回 undefined。
+ */
+export function resolveEntityEntry(
+  store: EntityStore,
+  type: string | undefined,
+  id: string | undefined,
+  source?: string,
+  schema?: Schema,
+): { id: string; record: EntityRecord } | undefined {
   if (!type || !id) return undefined;
   const direct = store.get(type, id);
-  if (!source) {
-    return direct;
+  if (id === '_global') return direct ? { id, record: direct } : undefined;
+  const target = direct ? entityTarget(id, direct, type, schema) : id;
+  const sourceField = schema?.sourceField ?? 'source';
+  const rows = store
+    .list(type)
+    .filter((row) => entityTarget(row.id, row.record, type, schema) === target);
+  if (source) {
+    const matches = rows.filter((row) => row.record.data[sourceField] === source);
+    return matches.length === 1 ? matches[0] : undefined;
   }
-  if (direct && direct.data.source === source) {
-    return direct;
+  return rows.find((row) => row.id === target) ?? rows.sort((a, b) => a.id.localeCompare(b.id))[0];
+}
+
+/**
+ * 计算曲线有效来源，区分未覆盖与显式自动。
+ * @param instance - 当前实例。
+ * @param slot - 槽位标识。
+ * @param fallback - 曲线静态来源。
+ * @returns 来源名称；空值表示自动选择。
+ */
+export function effectiveSource(
+  instance: ComponentInstance,
+  slot: string,
+  fallback?: string,
+): string | undefined {
+  return Object.hasOwn(instance.slotSourceBindings ?? {}, slot)
+    ? instance.slotSourceBindings![slot]
+    : fallback;
+}
+
+/**
+ * 清除旧模板中误持久化的工坊预览目标，不修改输入。
+ * @param template - 原始模板。
+ * @returns 只包含持久化配置的模板副本。
+ */
+export function normalizeTemplate(template: ComponentTemplate): ComponentTemplate {
+  const result = clone(template);
+  for (const control of result.controls ?? [])
+    if (control.props) delete control.props.workshopPreviewTarget;
+  return result;
+}
+
+/**
+ * 标准化旧来源空值及记录 ID 指派，清除实例中的预览字段。
+ * @param screen - 原始大屏。
+ * @param templates - 可用模板。
+ * @param store - 可选底账；缺失时保留待解析的旧 ID。
+ * @param schemas - 可用模式元数据。
+ * @returns 带来源语义版本 2 的大屏副本。
+ */
+export function normalizeScreen(
+  screen: ScreenConfig,
+  templates: ComponentTemplate[] = [],
+  store?: EntityStore,
+  schemas: Schema[] = [],
+): ScreenConfig {
+  const result = clone(screen);
+  if (result.bindingVersion !== undefined && result.bindingVersion !== 2)
+    throw new Error('不支持的大屏来源绑定版本');
+  for (const instance of result.components ?? []) {
+    if (result.bindingVersion !== 2)
+      for (const [slot, source] of Object.entries(instance.slotSourceBindings ?? {}))
+        if (source === '') delete instance.slotSourceBindings![slot];
+    const template = templates.find((t) => t.id === instance.templateId);
+    for (const slot of template?.slots ?? []) {
+      const id = instance.slotBindings?.[slot.id];
+      const record = id && store?.get(slot.schemaType, id);
+      if (!record) continue;
+      const schema = schemas.find((s) => s.type === slot.schemaType);
+      const target = entityTarget(id, record, slot.schemaType, schema);
+      if (target !== id) {
+        instance.slotBindings[slot.id] = target;
+        if (
+          !Object.hasOwn(instance.slotSourceBindings ?? {}, slot.id) &&
+          record.data[schema?.sourceField ?? 'source']
+        ) {
+          instance.slotSourceBindings ??= {};
+          instance.slotSourceBindings[slot.id] = String(
+            record.data[schema?.sourceField ?? 'source'],
+          );
+        }
+      }
+    }
+    for (const override of Object.values(instance.controlOverrides ?? {}))
+      if (override.props) delete override.props.workshopPreviewTarget;
   }
-  // 若指定了具体数据源，在实体列表中查找同批号/标识且来源相符的记录；未命中严格返回 undefined 保证来源权威
-  const matched = store.list(type).find(
-    (item) =>
-      (item.id === id ||
-        item.record.data.batch_no === id ||
-        item.record.data.vessel_name === id ||
-        item.record.data.mmsi === id ||
-        item.id.startsWith(`${id}_`)) &&
-      item.record.data.source === source,
-  );
-  return matched ? matched.record : undefined;
+  result.bindingVersion = 2;
+  return result;
 }
 
 /**
@@ -299,17 +409,19 @@ export function resolveEntityRecord(
  *
  * @param store - 实体池存储实例。
  * @param schemaType - 数据模式标识。
+ * @param schema - 可选模式元数据，未提供时兼容内置飞行目标身份。
  * @returns 包含目标标识与可读文本的数组。
  */
 export function extractUniqueTargets(
   store: EntityStore,
   schemaType: string,
+  schema?: Schema,
 ): Array<{ id: string; label: string }> {
   const items = store.list(schemaType);
   const seen = new Set<string>();
   const result: Array<{ id: string; label: string }> = [];
   for (const item of items) {
-    const targetId = String(item.record.data.batch_no || item.id);
+    const targetId = entityTarget(item.id, item.record, schemaType, schema);
     if (!seen.has(targetId)) {
       seen.add(targetId);
       const name = item.record.data.vessel_name;
@@ -361,8 +473,18 @@ export function resolveValue(
   const id =
     c.binding?.target === 'global' ? '_global' : instance.slotBindings[c.binding?.slotId ?? ''];
   const slotSource =
-    c.binding?.target === 'global' ? undefined : instance.slotSourceBindings?.[c.binding?.slotId ?? ''];
-  const record = id ? resolveEntityRecord(store, type, id, slotSource) : undefined;
+    c.binding?.target === 'global'
+      ? undefined
+      : instance.slotSourceBindings?.[c.binding?.slotId ?? ''];
+  const record = id
+    ? resolveEntityRecord(
+        store,
+        type,
+        id,
+        slotSource,
+        schemas.find((s) => s.type === type),
+      )
+    : undefined;
   const raw = record?.data[c.binding?.field ?? ''];
   const timestamp = record?.timestamps[c.binding?.field ?? ''] ?? null;
   const label =
@@ -535,7 +657,12 @@ function controls(template: ComponentTemplate, schemas: Schema[]): void {
         throw new Error('表格列规则数量无效');
       }
       for (const cr of c.props.tableColumnRules) {
-        if (!cr || typeof cr.field !== 'string' || !Array.isArray(cr.rules) || cr.rules.length > 30) {
+        if (
+          !cr ||
+          typeof cr.field !== 'string' ||
+          !Array.isArray(cr.rules) ||
+          cr.rules.length > 30
+        ) {
           throw new Error('表格列规则格式无效');
         }
         if (cr.rules.some((r) => !r || !/^#[0-9a-fA-F]{6}$/.test(r.color))) {
@@ -935,8 +1062,7 @@ export function validateScreen(
       for (const [slot, src] of Object.entries(i.slotSourceBindings)) {
         if (!template.slots.some((s) => s.id === slot))
           throw new Error('槽位数据源指派了不存在的槽位');
-        if (typeof src !== 'string' || src.length > 80)
-          throw new Error('槽位数据源标识无效');
+        if (typeof src !== 'string' || src.length > 80) throw new Error('槽位数据源标识无效');
       }
     }
     for (const id of Object.keys(i.controlOverrides))

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { screenState } from '../../stores/screens.ts';
-import { dataState } from '../../stores/entities.ts';
 import { usePageMode } from '../../composables/usePageMode.ts';
+import TargetSelection from '../TargetSelection.vue';
 
 import type { Geometry } from '../../types.ts';
 import { fitGeometry } from '../../engine/core.ts';
@@ -64,22 +64,6 @@ function layer(event: Event) {
     selectedInstance.value.position.zIndex = Math.max(0, Math.min(999, Number(v(event)) || 1));
   }
 }
-/**
- * 读取对象槽位可选的实体列表。
- *
- * @param type - 槽位的数据模式标识。
- * @returns 包含 id 和实体记录引用的数组。
- */
-const targets = (type: string) => dataState.store.list(type);
-/**
- * 将当前选中实例的槽位改绑为表单选中的对象。
- *
- * @param slot - 模板对象槽位 ID。
- * @param event - 实体选择事件，空值表示解除指派。
- * @returns 存在选中实例时返回改绑 Promise，否则返回 undefined。
- */
-const assign = (slot: string, event: Event) =>
-  selectedInstance.value && retarget(selectedInstance.value.instanceId, slot, v(event));
 </script>
 <template>
   <template v-if="selectedTemplate"
@@ -154,24 +138,15 @@ const assign = (slot: string, event: Event) =>
           @change="layer"
       /></label>
       <h4>对象槽位指派</h4>
-      <label
+      <TargetSelection
         v-for="slot in selectedTemplate.slots"
         :key="slot.id"
-        >{{ slot.label
-        }}<select
-          :value="selectedInstance.slotBindings[slot.id] || ''"
-          @change="assign(slot.id, $event)"
-        >
-          <option value="">未绑定对象</option>
-          <option
-            v-for="item in targets(slot.schemaType)"
-            :key="item.id"
-            :value="item.id"
-          >
-            {{ item.record.data.vessel_name || item.id }} · {{ item.id }}
-          </option>
-        </select></label
-      >
+        :label="slot.label"
+        :schema-type="slot.schemaType"
+        :target="selectedInstance.slotBindings[slot.id] || ''"
+        :source="selectedInstance.slotSourceBindings?.[slot.id] ?? null"
+        @change="(id, source) => retarget(selectedInstance!.instanceId, slot.id, id, source)"
+      />
       <p
         v-if="!selectedTemplate.slots.length"
         class="field-help"

@@ -11,6 +11,10 @@ import {
 } from '../../engine/core.ts';
 import { notify } from '../../stores/application.ts';
 import { useEditing } from '../../composables/useEditing.ts';
+import TargetSelection from '../TargetSelection.vue';
+import { templateState } from '../../stores/templates.ts';
+import { usePageMode } from '../../composables/usePageMode.ts';
+const page = usePageMode();
 const { selectedTemplate, displayControl, select, createSlot, renameSlot, patchControl } =
   useEditing();
 /**
@@ -115,10 +119,6 @@ const currentLineSchema = computed(() =>
 const currentLineNumericFields = computed(
   () => currentLineSchema.value?.fields.filter((f) => f.type === 'number') ?? [],
 );
-const previewTargetOptions = computed(() =>
-  extractUniqueTargets(dataState.store, lineSchemaType.value),
-);
-
 const availableSources = computed(() => {
   const sources = new Set<string>();
   const schemaSources = currentLineSchema.value?.fields.find((f) => f.key === 'source')?.options;
@@ -148,6 +148,11 @@ function changeLineSchema(event: Event) {
     (targetSchema.isEntity ? DEFAULT_SLOT_CHART_FIELD : DEFAULT_GLOBAL_CHART_FIELD);
   if (targetSchema.isEntity) {
     let slot = selectedTemplate.value?.slots.find((s) => s.schemaType === nextType);
+    if (!slot && page.mode !== 'workshop') {
+      (event.target as HTMLSelectElement).value = lineSchemaType.value;
+      notify('请先在组件工坊为模板建立该数据类型的槽位，再将模板用于大屏。', true);
+      return;
+    }
     if (!slot) slot = createSlot('对象1', nextType) ?? undefined;
     const existing = displayControl.value?.props.series ?? [];
     const newSeries =
@@ -159,6 +164,8 @@ function changeLineSchema(event: Event) {
               ? s.field
               : numField,
             color: s.color || DEFAULT_CHART_COLORS[0],
+            label: s.label,
+            yAxis: s.yAxis,
           }))
         : [
             {
@@ -189,6 +196,8 @@ function changeLineSchema(event: Event) {
               ? s.field
               : numField,
             color: s.color || DEFAULT_CHART_COLORS[0],
+            label: s.label,
+            yAxis: s.yAxis,
           }))
         : [
             {
@@ -378,8 +387,9 @@ function seriesAdd() {
     });
     return;
   }
-  let slot = selectedTemplate.value?.slots[0];
+  let slot = selectedTemplate.value?.slots.find((s) => s.schemaType === lineSchemaType.value);
   if (!slot) {
+    if (page.mode !== 'workshop') return notify('请先在组件工坊建立该数据类型的槽位。', true);
     slot = createSlot('对象1', lineSchemaType.value) ?? undefined;
   }
   const numField = currentLineNumericFields.value[0]?.key || DEFAULT_SLOT_CHART_FIELD;
@@ -439,6 +449,10 @@ function seriesRemove(index: number) {
           </option>
         </optgroup>
       </select>
+      <p class="field-help">
+        当前模式：{{ currentLineSchema?.name }}。高度 / km、速度 / km/h
+        属于“飞行目标”；船舶模式保留航速 / 节。新增数据类型槽位请在组件工坊配置。
+      </p>
 
       <h4>X 轴坐标基准</h4>
       <div class="segmented">
@@ -539,22 +553,31 @@ function seriesRemove(index: number) {
         </p>
       </template>
 
-      <template v-if="currentLineSchema?.isEntity">
+      <template v-if="page.mode === 'workshop' && currentLineSchema?.isEntity">
         <h4>工坊预览目标</h4>
-        <select
-          aria-label="工坊预览目标"
-          :value="displayControl.props.workshopPreviewTarget || ''"
-          @change="props({ workshopPreviewTarget: v($event) || undefined })"
-        >
-          <option value="">默认（首个可用目标）</option>
-          <option
-            v-for="item in previewTargetOptions"
-            :key="item.id"
-            :value="item.id"
-          >
-            {{ item.label }}
-          </option>
-        </select>
+        <TargetSelection
+          v-for="slot in selectedTemplate.slots.filter((s) =>
+            displayControl?.props.series?.some((series) => series.slotId === s.id),
+          )"
+          :key="slot.id"
+          :label="`预览${slot.label}`"
+          :schema-type="slot.schemaType"
+          :target="
+            templateState.preview[`${displayControl.id}:${slot.id}`]?.target ??
+            extractUniqueTargets(
+              dataState.store,
+              slot.schemaType,
+              dataState.schemas.find((s) => s.type === slot.schemaType),
+            )[0]?.id ??
+            ''
+          "
+          :source="templateState.preview[`${displayControl.id}:${slot.id}`]?.source ?? null"
+          @change="
+            (target, source) => {
+              templateState.preview[`${displayControl!.id}:${slot.id}`] = { target, source };
+            }
+          "
+        />
         <p class="field-help">仅供工坊内试看时序波形与传感器测控对比，不会固化进模板定义。</p>
       </template>
 
@@ -656,16 +679,23 @@ function seriesRemove(index: number) {
               style="flex: 1"
             >
               <option
-                v-for="slot in selectedTemplate.slots"
+                v-for="slot in selectedTemplate.slots.filter(
+                  (s) => s.schemaType === lineSchemaType,
+                )"
                 :key="slot.id"
                 :value="slot.id"
               >
                 {{ slot.label }}
               </option>
-              <option value="__new__">＋ 新建对象占位符...</option>
+              <option
+                v-if="page.mode === 'workshop'"
+                value="__new__"
+              >
+                ＋ 新建对象占位符...
+              </option>
             </select>
             <button
-              v-if="series.slotId"
+              v-if="series.slotId && page.mode === 'workshop'"
               class="link-button"
               title="就地重命名该占位符"
               @click="startRenameSlot(series.slotId)"
@@ -712,7 +742,7 @@ function seriesRemove(index: number) {
               :value="series.filterSource || ''"
               @change="seriesChange(index, 'filterSource', $event)"
             >
-              <option value="">全部来源</option>
+              <option value="">自动选择（单一来源）</option>
               <option
                 v-for="src in availableSources"
                 :key="src"

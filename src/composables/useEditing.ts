@@ -51,7 +51,7 @@ export function useEditing() {
    * @returns 新建槽位对象；没有可编辑模板时返回 null。
    */
   function createSlot(label?: string, schemaType?: string): Slot | null {
-    const target = page.mode === 'workshop' ? templateState.draft : selectedTemplate.value;
+    const target = page.mode === 'workshop' ? templateState.draft : null;
     if (!target) return null;
     const schema =
       schemaType ||
@@ -62,25 +62,20 @@ export function useEditing() {
     const slotName = (label && label.trim()) || `对象${n}`;
     const slot: Slot = { id: uid('slot'), label: slotName, schemaType: schema };
     target.slots.push(slot);
-    if (selectedInstance.value && !selectedInstance.value.slotBindings[slot.id]) {
-      checkpoint();
-      selectedInstance.value.slotBindings[slot.id] = '';
-    }
     return slot;
   }
   /**
-   * 修改当前模板中指定对象槽位的显示名称。
+   * 仅在工坊修改模板草稿中指定对象槽位的显示名称。
    *
    * @param slotId - 待修改的槽位 ID。
    * @param newLabel - 新名称；去除首尾空白后为空时不修改。
    * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
    */
   function renameSlot(slotId: string, newLabel: string): void {
-    const target = page.mode === 'workshop' ? templateState.draft : selectedTemplate.value;
+    const target = page.mode === 'workshop' ? templateState.draft : null;
     if (!target) return;
     const s = target.slots.find((x) => x.id === slotId);
     if (s && newLabel.trim()) {
-      if (page.mode !== 'workshop') checkpoint();
       s.label = newLabel.trim();
     }
   }
@@ -93,13 +88,13 @@ export function useEditing() {
     createSlot();
   }
   /**
-   * 删除未被控件或曲线引用的对象槽位，并清理选中实例中的对应指派。
+   * 仅在工坊删除模板草稿中未被控件或曲线引用的对象槽位。
    *
    * @param slot - 待删除的槽位对象；仍被引用时只提示，不删除。
    * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
    */
   function removeSlot(slot: Slot): void {
-    const target = page.mode === 'workshop' ? templateState.draft : selectedTemplate.value;
+    const target = page.mode === 'workshop' ? templateState.draft : null;
     if (!target) return;
     if (
       target.controls.some(
@@ -107,9 +102,7 @@ export function useEditing() {
       )
     )
       return notify('该对象槽位仍被控件引用，请先修改相关绑定', true);
-    if (page.mode !== 'workshop') checkpoint();
     target.slots = target.slots.filter((s) => s.id !== slot.id);
-    if (selectedInstance.value) delete selectedInstance.value.slotBindings[slot.id];
   }
   /**
    * 提交控件局部修改；工坊直接更新草稿，大屏编辑只写入实例私有覆盖。

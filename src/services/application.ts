@@ -3,6 +3,7 @@ import { dataState } from '../stores/entities.ts';
 import { screenState } from '../stores/screens.ts';
 import { templateState } from '../stores/templates.ts';
 import { request } from './http.ts';
+import { normalizeTemplate } from '../engine/core.ts';
 import { startRealtime, stopRealtime } from './realtime.ts';
 import type { ComponentTemplate, Envelope, Schema, ScreenConfig } from '../types.ts';
 
@@ -93,7 +94,7 @@ export function initialize(): Promise<void> {
       dataState.sourceMode = data.mode;
       dataState.paused = data.paused;
       dataState.lastUpdate = data.lastUpdate;
-      templateState.templates = data.templates.map((row) => row.data);
+      templateState.templates = data.templates.map((row) => normalizeTemplate(row.data));
       templateState.templateRevisions = Object.fromEntries(
         data.templates.map((row) => [row.data.id, row.revision]),
       );

@@ -42,23 +42,15 @@ export const schemas = [
     type: 'projectile',
     name: '飞行目标',
     isEntity: true,
-    idField: 'batch_no',
+    targetIdField: 'batch_no',
+    sourceField: 'source',
     fields: [
       { key: 'batch_no', name: '批号', type: 'string' },
       {
         key: 'source',
         name: '数据源',
         type: 'enum',
-        options: [
-          '雷达1',
-          '雷达2',
-          '雷达3',
-          '雷达4',
-          '遥测1',
-          '遥测2',
-          '光测1',
-          '光测2',
-        ],
+        options: ['雷达1', '雷达2', '雷达3', '雷达4', '遥测1', '遥测2', '光测1', '光测2'],
       },
       { key: 'altitude', name: '高度', type: 'number', unit: 'km', precision: 2 },
       { key: 'speed', name: '速度', type: 'number', unit: 'km/h', precision: 0 },
@@ -529,22 +521,9 @@ export function demoEnvelopes(now = Date.now()) {
     timestamp: now,
     data: { total_vessels: 8, cargo_count: 4, fishing_count: 2, warning_count: 1 },
   });
-  const sampleSources = [
-    '雷达1',
-    '雷达2',
-    '雷达3',
-    '雷达4',
-    '遥测1',
-    '遥测2',
-    '光测1',
-    '光测2',
-  ];
-  const baseAltitudes = [
-    48.5, 52.3, 61.0, 78.4, 85.2, 92.6, 35.8, 42.1, 68.7, 75.3, 88.9, 105.4,
-  ];
-  const baseSpeeds = [
-    2450, 2600, 3100, 3850, 4200, 4550, 1850, 2100, 3400, 3750, 4300, 4950,
-  ];
+  const sampleSources = ['雷达1', '雷达2', '雷达3', '雷达4', '遥测1', '遥测2', '光测1', '光测2'];
+  const baseAltitudes = [48.5, 52.3, 61.0, 78.4, 85.2, 92.6, 35.8, 42.1, 68.7, 75.3, 88.9, 105.4];
+  const baseSpeeds = [2450, 2600, 3100, 3850, 4200, 4550, 1850, 2100, 3400, 3750, 4300, 4950];
   const sampleStatuses = [
     '正常',
     '跟踪',
@@ -570,9 +549,9 @@ export function demoEnvelopes(now = Date.now()) {
       const src = sampleSources[sIdx];
       const isPrimary = sIdx === 0;
       const id = isPrimary ? batch_no : `${batch_no}_src${sIdx + 1}`;
-      const altOffset = isPrimary ? 0 : Number(((sIdx * 0.14) - 0.28).toFixed(2));
-      const spdOffset = isPrimary ? 0 : Math.round((sIdx * 12) - 25);
-      const headingOffset = isPrimary ? 0 : (sIdx * 2);
+      const altOffset = isPrimary ? 0 : Number((sIdx * 0.14 - 0.28).toFixed(2));
+      const spdOffset = isPrimary ? 0 : Math.round(sIdx * 12 - 25);
+      const headingOffset = isPrimary ? 0 : sIdx * 2;
 
       result.push({
         type: 'projectile',
@@ -595,7 +574,6 @@ export function demoEnvelopes(now = Date.now()) {
 
   result.push({
     type: 'event_log',
-    id: '_global',
     timestamp: now,
     data: {
       time: new Date(now).toISOString(),

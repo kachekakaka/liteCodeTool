@@ -11,7 +11,9 @@ import {
   formatAdaptiveTimeTick,
   calculateExtents,
   resolveEntityRecord,
+  effectiveSource,
 } from '../engine/core.ts';
+import { templateState } from '../stores/templates.ts';
 import type { TrajectoryPoint } from '../engine/core.ts';
 const props = defineProps({
   control: { type: Object as PropType<Control>, required: true },
@@ -105,15 +107,19 @@ const series = computed(() =>
     const slot = props.template.slots.find((s) => s.id === seriesItem.slotId);
     const slotId = seriesItem.slotId ?? '';
     // 严格槽位来源权威原则：大屏槽位指派来源优先于设计态静态配置
-    const activeSource = props.instance.slotSourceBindings?.[slotId] || seriesItem.filterSource;
+    const preview = isWorkshop.value
+      ? templateState.preview[`${props.control.id}:${slotId}`]
+      : undefined;
+    const activeSource =
+      preview?.source !== null && preview?.source !== undefined
+        ? preview.source
+        : effectiveSource(props.instance, slotId, seriesItem.filterSource);
     let id = props.instance.slotBindings[slotId];
-    if (isWorkshop.value && props.control.props.workshopPreviewTarget) {
-      id = props.control.props.workshopPreviewTarget;
-    }
+    if (preview) id = preview.target;
     const schemaType = slot?.schemaType ?? 'vessel';
     const schema = dataState.schemas.find((s) => s.type === schemaType);
     const targetRecord = id
-      ? resolveEntityRecord(dataState.store, schemaType, id, activeSource)
+      ? resolveEntityRecord(dataState.store, schemaType, id, activeSource, schema)
       : undefined;
     const field = schema?.fields.find((f) => f.key === seriesItem.field);
 
@@ -135,8 +141,8 @@ const series = computed(() =>
     if (isWorkshop.value) {
       label = `【${slot?.label || '对象' + (index + 1)}】`;
     }
-    if (activeSource) {
-      label += ` [${activeSource}]`;
+    if (activeSource || targetRecord?.data[schema?.sourceField ?? 'source']) {
+      label += ` [${activeSource || targetRecord?.data[schema?.sourceField ?? 'source']}]`;
     }
 
     // 双轴时序航迹提取（O(N) 线性纯函数匹配）：每条曲线天然使用自身对象的 X 轴度量
@@ -248,7 +254,8 @@ const y = (value: number, isRight = false) => {
  * @returns SVG 逻辑横坐标。
  */
 const mapFieldX = (xVal: number) =>
-  58 + ((xVal - xExtents.value.min) / (xExtents.value.max - xExtents.value.min || 1)) * plotWidth.value;
+  58 +
+  ((xVal - xExtents.value.min) / (xExtents.value.max - xExtents.value.min || 1)) * plotWidth.value;
 
 /**
  * 按字段值域将双轴航迹 Y 值映射到 SVG 纵坐标。
@@ -257,7 +264,8 @@ const mapFieldX = (xVal: number) =>
  * @returns SVG 逻辑纵坐标。
  */
 const mapFieldY = (yVal: number) =>
-  284 - ((yVal - leftExtents.value.min) / (leftExtents.value.max - leftExtents.value.min || 1)) * 238;
+  284 -
+  ((yVal - leftExtents.value.min) / (leftExtents.value.max - leftExtents.value.min || 1)) * 238;
 
 // 时序折线路径
 /**

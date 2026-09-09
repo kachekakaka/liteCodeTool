@@ -259,7 +259,7 @@ import StreamControl from './controls/StreamControl.vue';
     />
     <StreamControl
       v-else-if="c.type === 'stream'"
-      :control="control"
+      :control="c"
       :instance="instance"
       :template="template"
     />

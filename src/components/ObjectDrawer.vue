@@ -9,6 +9,8 @@ import { retarget } from '../stores/screens.ts';
 import { saveScreen } from '../stores/screens.ts';
 import { restoreBindings } from '../stores/screens.ts';
 import { checkpoint } from '../stores/screens.ts';
+import { extractUniqueTargets, resolveEntityRecord } from '../engine/core.ts';
+import TargetSelection from './TargetSelection.vue';
 
 const tab = ref<'objects' | 'text'>('objects');
 
@@ -32,13 +34,28 @@ const groups = computed(() =>
 );
 
 const candidates = computed(() =>
-  dataState.store
-    .list(target.value.schemaType)
-    .filter(({ id, record }) =>
-      `${id} ${record.data.vessel_name ?? ''}`
-        .toLocaleLowerCase()
-        .includes(uiState.search.trim().toLocaleLowerCase()),
-    ),
+  extractUniqueTargets(dataState.store, target.value.schemaType, currentSchema.value)
+    .filter(({ label }) =>
+      label.toLocaleLowerCase().includes(uiState.search.trim().toLocaleLowerCase()),
+    )
+    .map((item) => ({
+      ...item,
+      record: resolveEntityRecord(
+        dataState.store,
+        target.value.schemaType,
+        item.id,
+        currentSource.value ?? undefined,
+        currentSchema.value,
+      ),
+    })),
+);
+const currentSchema = computed(() =>
+  dataState.schemas.find((s) => s.type === target.value.schemaType),
+);
+const currentSource = computed(
+  () =>
+    screenState.screen?.components.find((i) => i.instanceId === target.value.instanceId)
+      ?.slotSourceBindings?.[target.value.slotId] ?? null,
 );
 
 const current = computed(
@@ -197,7 +214,7 @@ const choose = (id: string) => retarget(target.value.instanceId, target.value.sl
         class="drawer-scroll"
       >
         <p class="drawer-hint">
-          先选择对象槽位，再搜索目标。临时换船即时生效，不改变控件的字段绑定。
+          先选择对象槽位，再搜索业务目标与选择来源。切换即时生效，不改变控件的字段绑定。
         </p>
         <button
           v-if="uiState.drawerInstance"
@@ -241,12 +258,21 @@ const choose = (id: string) => retarget(target.value.instanceId, target.value.sl
             当前大屏没有需要指派的对象槽位
           </p>
         </div>
-        <div class="search-heading">搜索船名 / MMSI</div>
+        <TargetSelection
+          v-if="target.slotId"
+          source-only
+          label="当前槽位"
+          :schema-type="target.schemaType"
+          :target="current ?? ''"
+          :source="currentSource"
+          @change="(id, source) => retarget(target.instanceId, target.slotId, id, source)"
+        />
+        <div class="search-heading">搜索目标名称 / 编号</div>
         <input
           ref="input"
           v-model="uiState.search"
           class="object-search"
-          placeholder="输入船名或编号…"
+          placeholder="输入名称、MMSI 或批号…"
           aria-label="搜索监控对象"
         />
         <div class="candidate-meta">
@@ -269,11 +295,14 @@ const choose = (id: string) => retarget(target.value.instanceId, target.value.sl
         >
           <span class="candidate-icon">◇</span>
           <div>
-            <strong>{{ item.record.data.vessel_name || item.id }}</strong
-            ><small>{{ item.id }} · {{ item.record.data.vessel_type || '类型未知' }}</small>
+            <strong>{{ item.label }}</strong
+            ><small
+              >{{ item.id }} ·
+              {{ item.record?.data.vessel_type || currentSchema?.name || '对象' }}</small
+            >
           </div>
           <span class="candidate-state">{{
-            current === item.id ? '已绑定' : item.record.data.status || '状态未知'
+            current === item.id ? '已绑定' : item.record?.data.status || '暂无该来源数据'
           }}</span>
         </button>
         <p

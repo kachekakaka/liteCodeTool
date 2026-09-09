@@ -42,6 +42,22 @@ const messages = ref<StreamMessage[]>([]);
 let lastProcessedTime = 0;
 let lastProcessedContent = '';
 
+watch(maxItems, (limit) => {
+  messages.value = messages.value.slice(-limit);
+});
+watch(
+  targetSchemaType,
+  () => {
+    messages.value = [];
+    lastProcessedTime = 0;
+    lastProcessedContent = '';
+  },
+  { flush: 'sync' },
+);
+watch([autoScroll, isHovered], ([enabled, hovered]) => {
+  if (enabled && !hovered) nextTick(() => scrollToBottom(false));
+});
+
 /**
  * 将消息流滚动容器滚动到底部最新消息处。
  *
@@ -85,13 +101,14 @@ watch(
 
     messages.value.push(newMsg);
     if (messages.value.length > maxItems.value) {
-      messages.value.shift();
+      messages.value.splice(0, messages.value.length - maxItems.value);
     }
 
     if (autoScroll.value && !isHovered.value) {
       nextTick(() => scrollToBottom(true));
     }
   },
+  { immediate: true },
 );
 
 onMounted(() => {
@@ -110,12 +127,24 @@ onMounted(() => {
         <span class="stream-dot"></span>
         <strong>实时消息流</strong>
         <span class="stream-count">{{ messages.length }} 条</span>
-        <span v-if="isHovered" class="stream-pause-hint">悬停中 · 滚动已暂停</span>
+        <span
+          v-if="isHovered"
+          class="stream-pause-hint"
+          >悬停中 · 滚动已暂停</span
+        >
       </div>
     </div>
 
-    <div ref="scrollContainer" class="stream-body">
-      <div v-if="!messages.length" class="stream-empty">暂无实时消息</div>
+    <div
+      ref="scrollContainer"
+      class="stream-body"
+    >
+      <div
+        v-if="!messages.length"
+        class="stream-empty"
+      >
+        暂无实时消息
+      </div>
       <div
         v-for="msg in messages"
         :key="msg.id"
@@ -123,11 +152,21 @@ onMounted(() => {
         :class="'level-' + msg.level"
       >
         <span class="msg-time">{{ msg.timeStr }}</span>
-        <span class="msg-badge" :class="'badge-' + msg.level">
-          <span class="stream-level-dot" :class="'dot-' + msg.level"></span>
+        <span
+          class="msg-badge"
+          :class="'badge-' + msg.level"
+        >
+          <span
+            class="stream-level-dot"
+            :class="'dot-' + msg.level"
+          ></span>
           <span class="stream-level-text">{{ msg.level.toUpperCase() }}</span>
         </span>
-        <span v-if="msg.source" class="msg-source">{{ msg.source }}</span>
+        <span
+          v-if="msg.source"
+          class="msg-source"
+          >{{ msg.source }}</span
+        >
         <span class="msg-content">{{ msg.content }}</span>
       </div>
     </div>
@@ -176,8 +215,15 @@ onMounted(() => {
 }
 
 @keyframes streamPulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.85); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
 }
 
 .stream-count {

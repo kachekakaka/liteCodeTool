@@ -6,11 +6,12 @@ import { usePageMode } from '../composables/usePageMode.ts';
 import { computed, nextTick, onUnmounted, ref } from 'vue';
 import type { PropType } from 'vue';
 import type { ComponentInstance, ComponentTemplate, Control } from '../types.ts';
-import { effectiveControl, effectiveSubTitle, extractUniqueTargets } from '../engine/core.ts';
+import { effectiveControl, effectiveSubTitle } from '../engine/core.ts';
 import { openDrawer } from '../stores/application.ts';
-import { retarget, retargetSource, checkpoint } from '../stores/screens.ts';
+import { retarget, checkpoint } from '../stores/screens.ts';
 import { useEditing } from '../composables/useEditing.ts';
 import ControlRenderer from './ControlRenderer.vue';
+import TargetSelection from './TargetSelection.vue';
 const props = defineProps({
   instance: { type: Object as PropType<ComponentInstance>, required: true },
   template: { type: Object as PropType<ComponentTemplate>, required: true },
@@ -269,80 +270,6 @@ function move(event: PointerEvent) {
  */
 const cancelTouch = () => clearTimeout(touchTimer);
 
-/**
- * 获取指定数据模式下排重后的实体列表。
- *
- * @param schemaType - 槽位所属 Schema 类型。
- * @returns 包含目标唯一标识与可读文本的数组。
- */
-const uniqueTargetOptions = (schemaType: string) =>
-  extractUniqueTargets(dataState.store, schemaType);
-
-/**
- * 提取指定槽位当前目标或当前模式下可用的数据来源选项。
- *
- * @param schemaType - 槽位所属 Schema 类型。
- * @param currentTarget - 当前槽位绑定的实体 ID。
- * @returns 数据来源名称字符串数组。
- */
-function availableSourcesForSlot(schemaType: string, currentTarget?: string): string[] {
-  const sources = new Set<string>();
-  const items = dataState.store.list(schemaType);
-
-  // 优先提取当前选中目标已上报的数据来源
-  if (currentTarget) {
-    for (const item of items) {
-      const match =
-        item.id === currentTarget ||
-        item.record.data.batch_no === currentTarget ||
-        item.record.data.mmsi === currentTarget;
-      if (match && item.record.data.source) {
-        sources.add(String(item.record.data.source));
-      }
-    }
-  }
-
-  // 补充或回退当前模式声明的预置来源选项（如 雷达1~4、遥测1~2、光测1~2）
-  const schema = dataState.schemas.find((s) => s.type === schemaType);
-  const schemaSources = schema?.fields.find((f) => f.key === 'source')?.options;
-  if (Array.isArray(schemaSources)) {
-    for (const s of schemaSources) {
-      if (s) sources.add(String(s));
-    }
-  }
-
-  // 若仍为空，遍历实体池中该模式的所有已上报来源
-  if (sources.size === 0) {
-    for (const item of items) {
-      if (item.record.data.source) {
-        sources.add(String(item.record.data.source));
-      }
-    }
-  }
-
-  return Array.from(sources);
-}
-
-/**
- * 读取槽位下拉框的值并切换当前实例的对象指派。
- *
- * @param slot - 待切换的模板槽位 ID。
- * @param event - 目标实体选择事件，空值表示解除指派。
- * @returns 对象改绑和底账补查的 Promise，不携带业务返回值。
- */
-const changeTarget = (slot: string, event: Event) =>
-  retarget(props.instance.instanceId, slot, (event.target as HTMLSelectElement).value);
-
-/**
- * 读取槽位来源下拉框的值并切换当前实例的数据源过滤指派。
- *
- * @param slot - 待切换的模板槽位 ID。
- * @param event - 数据来源选择事件，空值表示全部/自动。
- * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
- */
-const changeSource = (slot: string, event: Event) =>
-  retargetSource(props.instance.instanceId, slot, (event.target as HTMLSelectElement).value);
-
 const popoverUp = computed(() => (props.instance.position?.y ?? 0) > 600);
 
 onUnmounted(() => {
@@ -483,42 +410,15 @@ onUnmounted(() => {
         :key="slot.id"
         class="popover-slot-group"
       >
-        <span class="slot-label">{{ slot.label }}</span>
-        <div class="slot-dual-selects">
-          <select
-            class="slot-target-select"
-            :value="instance.slotBindings[slot.id] || ''"
-            :aria-label="`${slot.label} 目标实体`"
-            @change="changeTarget(slot.id, $event)"
-          >
-            <option value="">未绑定对象</option>
-            <option
-              v-for="item in uniqueTargetOptions(slot.schemaType)"
-              :key="item.id"
-              :value="item.id"
-            >
-              {{ item.label }}
-            </option>
-          </select>
-          <select
-            v-if="availableSourcesForSlot(slot.schemaType, instance.slotBindings[slot.id]).length > 0"
-            class="slot-source-select"
-            :value="instance.slotSourceBindings?.[slot.id] || ''"
-            :aria-label="`${slot.label} 数据来源`"
-            @change="changeSource(slot.id, $event)"
-          >
-            <option value="">全部 / 自动</option>
-            <option
-              v-for="src in availableSourcesForSlot(slot.schemaType, instance.slotBindings[slot.id])"
-              :key="src"
-              :value="src"
-            >
-              {{ src }}
-            </option>
-          </select>
-        </div>
+        <TargetSelection
+          :label="slot.label"
+          :schema-type="slot.schemaType"
+          :target="instance.slotBindings[slot.id] || ''"
+          :source="instance.slotSourceBindings?.[slot.id] ?? null"
+          @change="(id, source) => retarget(instance.instanceId, slot.id, id, source)"
+        />
       </div>
-      ><button
+      <button
         class="link-button"
         @click="
           openDrawer(instance.instanceId);

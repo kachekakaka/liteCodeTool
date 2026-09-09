@@ -1,5 +1,11 @@
 import { computed, reactive } from 'vue';
-import { clone, fitGeometry, validateScreen } from '../engine/core.ts';
+import {
+  clone,
+  fitGeometry,
+  validateScreen,
+  normalizeScreen,
+  normalizeTemplate,
+} from '../engine/core.ts';
 import type { ComponentInstance, ComponentTemplate, Envelope, ScreenConfig } from '../types.ts';
 import { uiState } from './application.ts';
 import { templateState } from './templates.ts';
@@ -87,6 +93,7 @@ function select(instanceId: string) {
  * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
  */
 export function applyScreen(data: ScreenConfig, revision: string): void {
+  data = normalizeScreen(data, templateState.templates, dataState.store, dataState.schemas);
   screenState.screen = data;
   screenState.savedScreen = JSON.stringify(data);
   screenState.screenRevision = revision;
@@ -115,7 +122,12 @@ export async function loadScreen(id: string): Promise<void> {
  */
 export async function saveScreen(): Promise<void> {
   if (!screenState.screen || screenState.saving) return;
-  const submitted = clone(screenState.screen);
+  const submitted = normalizeScreen(
+    screenState.screen,
+    templateState.templates,
+    dataState.store,
+    dataState.schemas,
+  );
   screenState.saving = true;
   try {
     validateScreen(submitted, templateState.templates, dataState.schemas);
@@ -179,10 +191,15 @@ export function exportScreen(): void {
         JSON.stringify(
           {
             format: 'litecode.screen.v1',
-            screen: screenState.screen,
-            templates: templateState.templates.filter((t) =>
-              screenState.screen!.components.some((i) => i.templateId === t.id),
+            screen: normalizeScreen(
+              screenState.screen,
+              templateState.templates,
+              dataState.store,
+              dataState.schemas,
             ),
+            templates: templateState.templates
+              .filter((t) => screenState.screen!.components.some((i) => i.templateId === t.id))
+              .map(normalizeTemplate),
           },
           null,
           2,
@@ -347,14 +364,14 @@ export function duplicateInstance(): void {
  * @param instanceId - 需要改绑的组件实例标识。
  * @param slot - 模板内对象槽位标识。
  * @param id - 目标实体标识；空字符串表示解除指派，不请求底账。
- * @param source - 可选指定的数据来源名称；空字符串表示全部或自动。
+ * @param source - 来源名称；空字符串表示显式自动，null 表示跟随曲线配置，省略时保持当前来源。
  * @returns 完成处理的 Promise，不携带业务返回值。
  */
 export async function retarget(
   instanceId: string,
   slot: string,
   id: string,
-  source?: string,
+  source?: string | null,
 ): Promise<void> {
   const instance = screenState.screen?.components.find((i) => i.instanceId === instanceId);
   const template = templateState.templates.find((t) => t.id === instance?.templateId);
@@ -367,37 +384,22 @@ export async function retarget(
     delete instance.slotBindings[slot];
     if (instance.slotSourceBindings) delete instance.slotSourceBindings[slot];
   }
-  if (source !== undefined) {
+  if (id && source !== undefined) {
     instance.slotSourceBindings ??= {};
-    if (source) instance.slotSourceBindings[slot] = source;
+    if (source !== null) instance.slotSourceBindings[slot] = source;
     else delete instance.slotSourceBindings[slot];
   }
+  screenState.screen!.bindingVersion = 2;
   if (!id) return;
   try {
+    const chosen = instance.slotSourceBindings?.[slot] ?? '';
     const result = await request<Envelope>(
-      `/api/entities/${encodeURIComponent(type)}/${encodeURIComponent(id)}`,
+      `/api/entities/${encodeURIComponent(type)}/${encodeURIComponent(id)}?byTarget=1&source=${encodeURIComponent(chosen)}`,
     );
     dataState.store.apply(result.data, true);
   } catch (e) {
     notify(`目标已切换；底账读取失败，缺失字段显示 --：${(e as Error).message}`, true);
   }
-}
-
-/**
- * 切换指定实例槽位的物理数据来源（如 雷达1、遥测1 等），不改变目标实体指派。
- *
- * @param instanceId - 组件实例标识。
- * @param slot - 模板内对象槽位标识。
- * @param source - 数据源名称；空字符串表示全部或自动来源。
- * @returns 无返回值（undefined）；结果通过状态更新体现。
- */
-export function retargetSource(instanceId: string, slot: string, source: string): void {
-  const instance = screenState.screen?.components.find((i) => i.instanceId === instanceId);
-  if (!instance) return;
-  checkpoint();
-  instance.slotSourceBindings ??= {};
-  if (source) instance.slotSourceBindings[slot] = source;
-  else delete instance.slotSourceBindings[slot];
 }
 
 /**

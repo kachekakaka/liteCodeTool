@@ -5,7 +5,8 @@ export type Scalar = string | number | boolean | null;
 /**
  * 平台支持的原子控件类型，分别对应文本、数值、时间、指示灯、表格、曲线、图片和消息流。
  */
-export type ControlType = 'text' | 'number' | 'time' | 'light' | 'table' | 'line' | 'image' | 'stream';
+export type ControlType =
+  'text' | 'number' | 'time' | 'light' | 'table' | 'line' | 'image' | 'stream';
 /**
  * 数据模式中的字段元信息，供绑定选择、格式化与接入校验共用。
  */
@@ -55,6 +56,10 @@ export interface Schema {
    * 实体标识字段键名；全局模式可省略。
    */
   idField?: string;
+  /** 业务目标字段；多来源记录可共享同一目标，区别于记录 ID。 */
+  targetIdField?: string;
+  /** 物理观测来源字段，配合业务目标确定一条观测记录。 */
+  sourceField?: string;
   /**
    * 该模式允许上报和绑定的字段定义。
    */
@@ -322,7 +327,7 @@ export interface ControlProps {
    */
   xAxisSchemaType?: string;
   /**
-   * 工坊设计态预览目标实体标识（如 P-101），仅在设计态预览渲染生效。
+   * 仅兼容读取旧配置；载入、保存与导出时剥离，新预览存于工坊会话状态。
    */
   workshopPreviewTarget?: string;
 }
@@ -477,6 +482,8 @@ export interface ComponentInstance {
  * 可保存、导入导出的大屏配置；运行时实体数据和编辑历史不属于该配置。
  */
 export interface ScreenConfig {
+  /** 来源绑定语义版本；2 中空来源表示显式自动，缺失表示跟随曲线。 */
+  bindingVersion?: 2;
   /**
    * 大屏资源唯一标识。
    */

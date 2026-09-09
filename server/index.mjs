@@ -1,4 +1,6 @@
 import http from 'node:http';
+import { validateEnvelope as validateIncoming } from './ingestion.mjs';
+import { upgradeData } from './data-upgrade.mjs';
 import { createRequire } from 'node:module';
 const requireForLock = createRequire(import.meta.url);
 import path from 'node:path';
@@ -8,6 +10,9 @@ import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import wsLibrary from '../vendor/ws.cjs';
 const { WebSocketServer } = wsLibrary;
 import {
+  normalizeTemplate,
+  normalizeScreen,
+  resolveEntityEntry,
   EntityStore,
   validId,
   validateTemplate,
@@ -192,6 +197,14 @@ process.on('exit', () => {
 });
 for (const group of ['schemas', 'templates', 'screens', 'entities'])
   await mkdir(path.join(dataDir, group), { recursive: true });
+const inputUnits = await upgradeData(dataDir, {
+  schemas: builtinSchemas,
+  templates: builtinTemplates,
+  records: demoEnvelopes(),
+  demo,
+  screen: defaultScreen(demo),
+});
+// 先检查兼容升级，冲突时不得提前写入缺失模板；已升级目录仍保留首次资源补缺行为。
 await seed('schemas', 'default', builtinSchemas);
 for (const template of builtinTemplates) await seed('templates', template.id, template);
 await seed('screens', 'screen_main', defaultScreen(demo));
@@ -308,31 +321,11 @@ async function body(req) {
  * @throws 无效模式、ID、字段值或时间戳时抛出状态码 400 的 HttpError。
  */
 function validateEnvelope(e) {
-  const schema = schemas.find((s) => s.type === e?.type);
-  if (
-    !schema ||
-    !finite(e.timestamp) ||
-    e.timestamp > Date.now() + 60_000 ||
-    !e.data ||
-    typeof e.data !== 'object' ||
-    Array.isArray(e.data) ||
-    (schema.isEntity ? !validId(e.id) : e.id !== undefined)
-  )
-    throw new HttpError(400, '增量包的类型、标识、时间戳或数据无效');
-  for (const [key, value] of Object.entries(e.data)) {
-    const f = schema.fields.find((f) => f.key === key);
-    if (
-      !f ||
-      (value !== null && (f.type === 'number' ? !finite(value) : typeof value !== 'string'))
-    )
-      throw new HttpError(400, `字段 ${key} 不符合数据模式`);
-    if (f?.type === 'datetime' && value !== null && Number.isNaN(new Date(value).getTime()))
-      throw new HttpError(400, '报位时间无效');
-    if (key === schema.idField && value !== e.id)
-      throw new HttpError(400, '实体标识与数据中的标识不一致');
+  try {
+    return validateIncoming(e, schemas, store, inputUnits);
+  } catch (error) {
+    throw new HttpError(400, error.message);
   }
-  // 字段时间戳仅由本服务生成；接入端不能伪造快照元数据。
-  return { type: e.type, ...(e.id ? { id: e.id } : {}), timestamp: e.timestamp, data: e.data };
 }
 let lastUpdate = null,
   dirtyEntities = false,
@@ -379,6 +372,7 @@ function broadcast(message) {
  * @returns 无返回值（undefined）；结果通过状态更新或副作用体现。
  */
 function update(envelope) {
+  envelope = validateIncoming(envelope, schemas, store);
   store.apply(envelope);
   dirtyEntities = true;
   lastUpdate = Date.now();
@@ -422,7 +416,11 @@ const server = http.createServer(async (req, res) => {
         return send(res, 200, result.data, result.revision);
       }
       if (['POST', 'PUT'].includes(req.method) && parts.length === 3) {
-        const value = await body(req);
+        let value = await body(req);
+        value =
+          group === 'templates'
+            ? normalizeTemplate(value)
+            : normalizeScreen(value, await allTemplates(), store, schemas);
         if (value.id !== id) throw new HttpError(400, '请求路径与配置标识不一致');
         try {
           if (group === 'templates') {
@@ -464,7 +462,17 @@ const server = http.createServer(async (req, res) => {
       parts.length === 4
     ) {
       if (!validId(parts[2]) || !validId(parts[3])) throw new HttpError(400, '实体标识无效');
-      const snapshot = snapshots().find((s) => s.type === parts[2] && s.id === parts[3]);
+      const recordId =
+        url.searchParams.get('byTarget') === '1'
+          ? resolveEntityEntry(
+              store,
+              parts[2],
+              parts[3],
+              url.searchParams.get('source') || undefined,
+              schemas.find((s) => s.type === parts[2]),
+            )?.id
+          : parts[3];
+      const snapshot = snapshots().find((s) => s.type === parts[2] && s.id === recordId);
       if (!snapshot) throw new HttpError(404, '该实体尚无初始底账');
       return send(res, 200, snapshot);
     }
@@ -482,17 +490,22 @@ const server = http.createServer(async (req, res) => {
         if (ids.has(template.id)) throw new HttpError(400, '配置包包含重复的模板标识');
         const id = 'tpl_' + randomUUID().replaceAll('-', '');
         ids.set(template.id, id);
-        return { ...template, id };
+        return normalizeTemplate({ ...template, id });
       });
-      const screen = {
-        ...bundle.screen,
-        id: 'screen_' + randomUUID().replaceAll('-', ''),
-        name: (bundle.screen.name || '导入大屏').slice(0, 110) + ' · 导入',
-        components: (bundle.screen.components || []).map((i) => ({
-          ...i,
-          templateId: ids.get(i.templateId),
-        })),
-      };
+      const screen = normalizeScreen(
+        {
+          ...bundle.screen,
+          id: 'screen_' + randomUUID().replaceAll('-', ''),
+          name: (bundle.screen.name || '导入大屏').slice(0, 110) + ' · 导入',
+          components: (bundle.screen.components || []).map((i) => ({
+            ...i,
+            templateId: ids.get(i.templateId),
+          })),
+        },
+        imported,
+        store,
+        schemas,
+      );
       try {
         for (const t of imported) validateTemplate(t, schemas);
         validateScreen(screen, imported, schemas);
@@ -698,7 +711,6 @@ const simulation = demo
         const evt = sampleLogs[Math.floor(Math.random() * sampleLogs.length)];
         update({
           type: 'event_log',
-          id: '_global',
           timestamp: now,
           data: { time: new Date(now).toISOString(), ...evt },
         });
