@@ -1,0 +1,194 @@
+[
+  {
+    "type": "vessel",
+    "name": "AIS 船舶目标",
+    "isEntity": true,
+    "idField": "mmsi",
+    "fields": [
+      {
+        "key": "mmsi",
+        "name": "MMSI",
+        "type": "string"
+      },
+      {
+        "key": "vessel_name",
+        "name": "船名",
+        "type": "string"
+      },
+      {
+        "key": "vessel_type",
+        "name": "船型",
+        "type": "enum",
+        "options": ["商船", "渔船", "执法船", "拖轮"]
+      },
+      {
+        "key": "speed",
+        "name": "航速",
+        "type": "number",
+        "unit": "节",
+        "precision": 1
+      },
+      {
+        "key": "heading",
+        "name": "航向",
+        "type": "number",
+        "unit": "°",
+        "precision": 0
+      },
+      {
+        "key": "lon",
+        "name": "经度",
+        "type": "number",
+        "unit": "°E",
+        "precision": 6
+      },
+      {
+        "key": "lat",
+        "name": "纬度",
+        "type": "number",
+        "unit": "°N",
+        "precision": 6
+      },
+      {
+        "key": "status",
+        "name": "航行状态",
+        "type": "enum",
+        "options": ["在航", "锚泊", "系泊", "作业", "巡航", "告警"]
+      },
+      {
+        "key": "update_time",
+        "name": "最新报位时间",
+        "type": "datetime"
+      }
+    ]
+  },
+  {
+    "type": "port_stats",
+    "name": "全港船舶统计",
+    "isEntity": false,
+    "fields": [
+      {
+        "key": "total_vessels",
+        "name": "在港船舶总数",
+        "type": "number",
+        "unit": "艘",
+        "precision": 0
+      },
+      {
+        "key": "cargo_count",
+        "name": "商船总数",
+        "type": "number",
+        "unit": "艘",
+        "precision": 0
+      },
+      {
+        "key": "fishing_count",
+        "name": "作业渔船",
+        "type": "number",
+        "unit": "艘",
+        "precision": 0
+      },
+      {
+        "key": "warning_count",
+        "name": "异常告警",
+        "type": "number",
+        "unit": "起",
+        "precision": 0
+      }
+    ]
+  },
+  {
+    "type": "projectile",
+    "name": "飞行目标",
+    "isEntity": true,
+    "targetIdField": "batch_no",
+    "sourceField": "source",
+    "fields": [
+      {
+        "key": "batch_no",
+        "name": "批号",
+        "type": "string"
+      },
+      {
+        "key": "source",
+        "name": "数据源",
+        "type": "enum",
+        "options": ["雷达1", "雷达2", "雷达3", "雷达4", "遥测1", "遥测2", "光测1", "光测2"]
+      },
+      {
+        "key": "altitude",
+        "name": "高度",
+        "type": "number",
+        "unit": "km",
+        "precision": 2
+      },
+      {
+        "key": "speed",
+        "name": "速度",
+        "type": "number",
+        "unit": "km/h",
+        "precision": 0
+      },
+      {
+        "key": "heading",
+        "name": "航向",
+        "type": "number",
+        "unit": "°",
+        "precision": 0
+      },
+      {
+        "key": "lon",
+        "name": "经度",
+        "type": "number",
+        "unit": "°E",
+        "precision": 6
+      },
+      {
+        "key": "lat",
+        "name": "纬度",
+        "type": "number",
+        "unit": "°N",
+        "precision": 6
+      },
+      {
+        "key": "status",
+        "name": "状态",
+        "type": "enum",
+        "options": ["正常", "跟踪", "丢失", "拦截"]
+      },
+      {
+        "key": "update_time",
+        "name": "最新报位时间",
+        "type": "datetime"
+      }
+    ]
+  },
+  {
+    "type": "event_log",
+    "name": "滚动消息流",
+    "isEntity": false,
+    "fields": [
+      {
+        "key": "time",
+        "name": "时间",
+        "type": "datetime"
+      },
+      {
+        "key": "level",
+        "name": "级别",
+        "type": "enum",
+        "options": ["info", "warn", "error"]
+      },
+      {
+        "key": "source",
+        "name": "来源",
+        "type": "string"
+      },
+      {
+        "key": "content",
+        "name": "内容",
+        "type": "string"
+      }
+    ]
+  }
+]

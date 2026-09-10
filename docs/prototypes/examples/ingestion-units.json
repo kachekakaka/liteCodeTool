@@ -1,0 +1,4 @@
+{
+  "default": { "altitude": "m", "speed": "m/s" },
+  "sources": { "雷达2": { "altitude": "km", "speed": "km/h" } }
+}

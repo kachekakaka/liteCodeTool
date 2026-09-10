@@ -10,6 +10,8 @@
 
 Windows x64 与麒麟 Linux ARM64 的免安装运行包准备、启动和验证边界见 [运行包契约](docs/prototypes/运行包契约.md)。
 
+需要修改源码时使用 [双平台离线开发包](docs/prototypes/离线开发包使用说明.md)。Java 后端对接资料包括 [接口详单](docs/prototypes/后端接口契约.md)、[数据格式与配置方式](docs/prototypes/数据格式与配置手册.md)、[全部结构字段](docs/prototypes/数据结构字段表.md) 和 [JSON 示例](docs/prototypes/examples/)。
+
 本项目遵循“一项事实一个真源”，所有核心文档与资产职责划分如下：
 
 | 文档 / 目录 | 唯一职责 |

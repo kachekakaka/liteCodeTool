@@ -20,7 +20,7 @@ export interface Field {
    */
   name: string;
   /**
-   * 字段类型；datetime 使用可解析日期值，enum 使用字符串选项。
+   * 字段类型；HTTP 接入的 datetime 使用可解析日期字符串，enum 使用字符串选项。
    */
   type: 'string' | 'number' | 'enum' | 'datetime';
   /**
@@ -466,11 +466,11 @@ export interface ComponentInstance {
    */
   showHeader?: boolean;
   /**
-   * 模板槽位 ID 到具体实体 ID 的映射；没有对应键表示未指派。
+   * 模板槽位 ID 到业务目标 ID（批号或 MMSI）的映射；没有对应键表示未指派。
    */
   slotBindings: Record<string, string>;
   /**
-   * 模板槽位 ID 到具体数据来源（如 雷达1、遥测 等传感器站）的映射；省略或空字符串表示全部或自动来源。
+   * 槽位 ID 到来源的映射；版本 2 中缺失键表示继承曲线来源，空字符串表示自动选择单条记录，来源名称表示严格指定。
    */
   slotSourceBindings?: Record<string, string>;
   /**

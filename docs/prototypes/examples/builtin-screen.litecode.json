@@ -1,0 +1,1165 @@
+{
+  "format": "litecode.screen.v1",
+  "screen": {
+    "id": "screen_main",
+    "name": "主港区综合监控大屏",
+    "resolution": {
+      "width": 1920,
+      "height": 1080
+    },
+    "background": "#030B17",
+    "components": [
+      {
+        "instanceId": "banner",
+        "templateId": "tpl_banner",
+        "position": {
+          "x": 24,
+          "y": 16,
+          "w": 1872,
+          "h": 80,
+          "zIndex": 1
+        },
+        "slotBindings": {},
+        "controlOverrides": {}
+      },
+      {
+        "instanceId": "kpi_1",
+        "templateId": "tpl_kpi",
+        "position": {
+          "x": 24,
+          "y": 112,
+          "w": 456,
+          "h": 160,
+          "zIndex": 1
+        },
+        "slotBindings": {},
+        "controlOverrides": {
+          "value": {
+            "binding": {
+              "target": "global",
+              "schemaType": "port_stats",
+              "field": "total_vessels"
+            },
+            "props": {
+              "iconType": "vessel"
+            },
+            "style": {
+              "color": "#22D3EE"
+            }
+          }
+        }
+      },
+      {
+        "instanceId": "kpi_2",
+        "templateId": "tpl_kpi",
+        "position": {
+          "x": 496,
+          "y": 112,
+          "w": 456,
+          "h": 160,
+          "zIndex": 1
+        },
+        "slotBindings": {},
+        "controlOverrides": {
+          "value": {
+            "binding": {
+              "target": "global",
+              "schemaType": "port_stats",
+              "field": "cargo_count"
+            },
+            "props": {
+              "iconType": "cargo"
+            },
+            "style": {
+              "color": "#5EA4FF"
+            }
+          }
+        }
+      },
+      {
+        "instanceId": "kpi_3",
+        "templateId": "tpl_kpi",
+        "position": {
+          "x": 968,
+          "y": 112,
+          "w": 456,
+          "h": 160,
+          "zIndex": 1
+        },
+        "slotBindings": {},
+        "controlOverrides": {
+          "value": {
+            "binding": {
+              "target": "global",
+              "schemaType": "port_stats",
+              "field": "fishing_count"
+            },
+            "props": {
+              "iconType": "fishing"
+            },
+            "style": {
+              "color": "#FFBF47"
+            }
+          }
+        }
+      },
+      {
+        "instanceId": "kpi_4",
+        "templateId": "tpl_kpi",
+        "position": {
+          "x": 1440,
+          "y": 112,
+          "w": 456,
+          "h": 160,
+          "zIndex": 1
+        },
+        "slotBindings": {},
+        "controlOverrides": {
+          "value": {
+            "binding": {
+              "target": "global",
+              "schemaType": "port_stats",
+              "field": "warning_count"
+            },
+            "props": {
+              "iconType": "alert"
+            },
+            "style": {
+              "color": "#FF667A"
+            }
+          }
+        }
+      },
+      {
+        "instanceId": "curve",
+        "templateId": "tpl_curve",
+        "position": {
+          "x": 24,
+          "y": 288,
+          "w": 1248,
+          "h": 448,
+          "zIndex": 1
+        },
+        "slotBindings": {
+          "slot_1": "413000001",
+          "slot_2": "413000002",
+          "slot_3": "413000003"
+        },
+        "controlOverrides": {}
+      },
+      {
+        "instanceId": "single",
+        "templateId": "tpl_single",
+        "position": {
+          "x": 1288,
+          "y": 288,
+          "w": 608,
+          "h": 448,
+          "zIndex": 1
+        },
+        "slotBindings": {
+          "slot_1": "413000002"
+        },
+        "controlOverrides": {}
+      },
+      {
+        "instanceId": "dual",
+        "templateId": "tpl_dual",
+        "position": {
+          "x": 24,
+          "y": 752,
+          "w": 608,
+          "h": 280,
+          "zIndex": 1
+        },
+        "slotBindings": {
+          "slot_1": "413000001",
+          "slot_2": "413000002"
+        },
+        "controlOverrides": {}
+      },
+      {
+        "instanceId": "table",
+        "templateId": "tpl_table",
+        "position": {
+          "x": 648,
+          "y": 752,
+          "w": 1248,
+          "h": 280,
+          "zIndex": 1
+        },
+        "slotBindings": {},
+        "controlOverrides": {}
+      }
+    ],
+    "bindingVersion": 2
+  },
+  "templates": [
+    {
+      "id": "tpl_banner",
+      "name": "大屏标题横幅",
+      "category": "基础组件",
+      "decoration": "banner",
+      "showHeader": false,
+      "layout": {
+        "width": 1872,
+        "height": 80
+      },
+      "slots": [],
+      "controls": [
+        {
+          "id": "emblem",
+          "type": "image",
+          "style": {
+            "x": 6,
+            "y": 7,
+            "w": 64,
+            "h": 64,
+            "fontSize": 16,
+            "color": "#DBF4FF"
+          },
+          "props": {
+            "sourceMode": "static",
+            "imageType": "radar"
+          },
+          "binding": null
+        },
+        {
+          "id": "title",
+          "type": "text",
+          "style": {
+            "x": 92,
+            "y": 5,
+            "w": 1195,
+            "h": 42,
+            "fontSize": 34,
+            "color": "#DBF4FF"
+          },
+          "props": {
+            "sourceMode": "static",
+            "staticValue": "AIS 船舶实时监管与调度大屏"
+          },
+          "binding": null
+        },
+        {
+          "id": "subtitle",
+          "type": "text",
+          "style": {
+            "x": 94,
+            "y": 51,
+            "w": 1100,
+            "h": 23,
+            "fontSize": 15,
+            "color": "#78A9D0"
+          },
+          "props": {
+            "sourceMode": "static",
+            "staticValue": "全港总览  /  重点监控  /  动态调度"
+          },
+          "binding": null
+        },
+        {
+          "id": "clock",
+          "type": "time",
+          "style": {
+            "x": 1370,
+            "y": 17,
+            "w": 478,
+            "h": 42,
+            "fontSize": 22,
+            "color": "#DBF4FF"
+          },
+          "props": {
+            "sourceMode": "static",
+            "clock": true
+          },
+          "binding": null
+        }
+      ]
+    },
+    {
+      "id": "tpl_kpi",
+      "name": "全局指标卡",
+      "category": "全局统计",
+      "showHeader": false,
+      "layout": {
+        "width": 456,
+        "height": 160
+      },
+      "slots": [],
+      "controls": [
+        {
+          "id": "value",
+          "type": "number",
+          "style": {
+            "x": 26,
+            "y": 23,
+            "w": 404,
+            "h": 119,
+            "fontSize": 62,
+            "color": "#22D3EE"
+          },
+          "props": {
+            "sourceMode": "dynamic",
+            "variant": "kpi",
+            "iconType": "vessel"
+          },
+          "binding": {
+            "target": "global",
+            "schemaType": "port_stats",
+            "field": "total_vessels"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tpl_curve",
+      "name": "重点船舶航速时序",
+      "category": "图表组件",
+      "layout": {
+        "width": 1248,
+        "height": 448
+      },
+      "slots": [
+        {
+          "id": "slot_1",
+          "label": "对象1",
+          "schemaType": "vessel"
+        },
+        {
+          "id": "slot_2",
+          "label": "对象2",
+          "schemaType": "vessel"
+        },
+        {
+          "id": "slot_3",
+          "label": "对象3",
+          "schemaType": "vessel"
+        }
+      ],
+      "controls": [
+        {
+          "id": "history",
+          "type": "line",
+          "style": {
+            "x": 18,
+            "y": 58,
+            "w": 1212,
+            "h": 372,
+            "fontSize": 16,
+            "color": "#DBF4FF"
+          },
+          "props": {
+            "sourceMode": "dynamic",
+            "lookbackMinutes": 20,
+            "gapSeconds": 120,
+            "series": [
+              {
+                "slotId": "slot_1",
+                "field": "speed",
+                "color": "#22D3EE"
+              },
+              {
+                "slotId": "slot_2",
+                "field": "speed",
+                "color": "#25D8AE"
+              },
+              {
+                "slotId": "slot_3",
+                "field": "speed",
+                "color": "#FFBF47"
+              }
+            ]
+          },
+          "binding": null
+        }
+      ]
+    },
+    {
+      "id": "tpl_single",
+      "name": "重点船舶监控",
+      "category": "船舶监控",
+      "layout": {
+        "width": 608,
+        "height": 448
+      },
+      "slots": [
+        {
+          "id": "slot_1",
+          "label": "对象1",
+          "schemaType": "vessel"
+        }
+      ],
+      "controls": [
+        {
+          "id": "name",
+          "type": "text",
+          "style": {
+            "x": 24,
+            "y": 62,
+            "w": 295,
+            "h": 38,
+            "fontSize": 28,
+            "color": "#DBF4FF"
+          },
+          "props": {
+            "sourceMode": "dynamic"
+          },
+          "binding": {
+            "target": "slot",
+            "slotId": "slot_1",
+            "field": "vessel_name"
+          }
+        },
+        {
+          "id": "mmsi",
+          "type": "text",
+          "style": {
+            "x": 24,
+            "y": 101,
+            "w": 270,
+            "h": 38,
+            "fontSize": 17,
+            "color": "#DBF4FF"
+          },
+          "props": {
+            "sourceMode": "dynamic"
+          },
+          "binding": {
+            "target": "slot",
+            "slotId": "slot_1",
+            "field": "mmsi"
+          }
+        },
+        {
+          "id": "status",
+          "type": "light",
+          "style": {
+            "x": 350,
+            "y": 68,
+            "w": 236,
+            "h": 49,
+            "fontSize": 18,
+            "color": "#DBF4FF"
+          },
+          "props": {
+            "sourceMode": "dynamic",
+            "colorRules": [
+              {
+                "value": "在航",
+                "color": "#25D8AE"
+              },
+              {
+                "value": "巡航",
+                "color": "#22D3EE"
+              },
+              {
+                "value": "告警",
+                "color": "#FF667A"
+              },
+              {
+                "value": "作业",
+                "color": "#FFBF47"
+              },
+              {
+                "value": "锚泊",
+                "color": "#8AA7C7"
+              },
+              {
+                "value": "系泊",
+                "color": "#8AA7C7"
+              }
+            ]
+          },
+          "binding": {
+            "target": "slot",
+            "slotId": "slot_1",
+            "field": "status"
+          }
+        },
+        {
+          "id": "speed",
+          "type": "number",
+          "style": {
+            "x": 24,
+            "y": 155,
+            "w": 260,
+            "h": 111,
+            "fontSize": 46,
+            "color": "#22D3EE"
+          },
+          "props": {
+            "sourceMode": "dynamic"
+          },
+          "binding": {
+            "target": "slot",
+            "slotId": "slot_1",
+            "field": "speed"
+          }
+        },
+        {
+          "id": "heading",
+          "type": "number",
+          "style": {
+            "x": 322,
+            "y": 155,
+            "w": 260,
+            "h": 111,
+            "fontSize": 40,
+            "color": "#22D3EE"
+          },
+          "props": {
+            "sourceMode": "dynamic"
+          },
+          "binding": {
+            "target": "slot",
+            "slotId": "slot_1",
+            "field": "heading"
+          }
+        },
+        {
+          "id": "lon",
+          "type": "number",
+          "style": {
+            "x": 24,
+            "y": 288,
+            "w": 267,
+            "h": 79,
+            "fontSize": 23,
+            "color": "#22D3EE"
+          },
+          "props": {
+            "sourceMode": "dynamic"
+          },
+          "binding": {
+            "target": "slot",
+            "slotId": "slot_1",
+            "field": "lon"
+          }
+        },
+        {
+          "id": "lat",
+          "type": "number",
+          "style": {
+            "x": 322,
+            "y": 288,
+            "w": 262,
+            "h": 79,
+            "fontSize": 23,
+            "color": "#22D3EE"
+          },
+          "props": {
+            "sourceMode": "dynamic"
+          },
+          "binding": {
+            "target": "slot",
+            "slotId": "slot_1",
+            "field": "lat"
+          }
+        },
+        {
+          "id": "updated",
+          "type": "time",
+          "style": {
+            "x": 24,
+            "y": 392,
+            "w": 560,
+            "h": 34,
+            "fontSize": 15,
+            "color": "#DBF4FF"
+          },
+          "props": {
+            "sourceMode": "dynamic"
+          },
+          "binding": {
+            "target": "slot",
+            "slotId": "slot_1",
+            "field": "update_time"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tpl_dual",
+      "name": "双船关键指标对比",
+      "category": "船舶监控",
+      "showHeader": false,
+      "layout": {
+        "width": 608,
+        "height": 280
+      },
+      "slots": [
+        {
+          "id": "slot_1",
+          "label": "对象1",
+          "schemaType": "vessel"
+        },
+        {
+          "id": "slot_2",
+          "label": "对象2",
+          "schemaType": "vessel"
+        }
+      ],
+      "controls": [
+        {
+          "id": "title",
+          "type": "text",
+          "style": {
+            "x": 24,
+            "y": 16,
+            "w": 560,
+            "h": 30,
+            "fontSize": 19,
+            "color": "#DBF4FF"
+          },
+          "props": {
+            "sourceMode": "static",
+            "staticValue": "双船关键指标对比"
+          },
+          "binding": null
+        },
+        {
+          "id": "name_1",
+          "type": "text",
+          "style": {
+            "x": 24,
+            "y": 65,
+            "w": 264,
+            "h": 38,
+            "fontSize": 22,
+            "color": "#DBF4FF"
+          },
+          "props": {
+            "sourceMode": "dynamic"
+          },
+          "binding": {
+            "target": "slot",
+            "slotId": "slot_1",
+            "field": "vessel_name"
+          }
+        },
+        {
+          "id": "name_2",
+          "type": "text",
+          "style": {
+            "x": 322,
+            "y": 65,
+            "w": 262,
+            "h": 38,
+            "fontSize": 22,
+            "color": "#DBF4FF"
+          },
+          "props": {
+            "sourceMode": "dynamic"
+          },
+          "binding": {
+            "target": "slot",
+            "slotId": "slot_2",
+            "field": "vessel_name"
+          }
+        },
+        {
+          "id": "speed_1",
+          "type": "number",
+          "style": {
+            "x": 24,
+            "y": 112,
+            "w": 264,
+            "h": 94,
+            "fontSize": 37,
+            "color": "#22D3EE"
+          },
+          "props": {
+            "sourceMode": "dynamic"
+          },
+          "binding": {
+            "target": "slot",
+            "slotId": "slot_1",
+            "field": "speed"
+          }
+        },
+        {
+          "id": "speed_2",
+          "type": "number",
+          "style": {
+            "x": 322,
+            "y": 112,
+            "w": 262,
+            "h": 94,
+            "fontSize": 37,
+            "color": "#25D8AE"
+          },
+          "props": {
+            "sourceMode": "dynamic"
+          },
+          "binding": {
+            "target": "slot",
+            "slotId": "slot_2",
+            "field": "speed"
+          }
+        },
+        {
+          "id": "status_1",
+          "type": "light",
+          "style": {
+            "x": 24,
+            "y": 227,
+            "w": 264,
+            "h": 32,
+            "fontSize": 14,
+            "color": "#DBF4FF"
+          },
+          "props": {
+            "sourceMode": "dynamic",
+            "colorRules": [
+              {
+                "value": "在航",
+                "color": "#25D8AE"
+              },
+              {
+                "value": "巡航",
+                "color": "#22D3EE"
+              },
+              {
+                "value": "告警",
+                "color": "#FF667A"
+              },
+              {
+                "value": "作业",
+                "color": "#FFBF47"
+              },
+              {
+                "value": "锚泊",
+                "color": "#8AA7C7"
+              },
+              {
+                "value": "系泊",
+                "color": "#8AA7C7"
+              }
+            ]
+          },
+          "binding": {
+            "target": "slot",
+            "slotId": "slot_1",
+            "field": "status"
+          }
+        },
+        {
+          "id": "status_2",
+          "type": "light",
+          "style": {
+            "x": 322,
+            "y": 227,
+            "w": 262,
+            "h": 32,
+            "fontSize": 14,
+            "color": "#DBF4FF"
+          },
+          "props": {
+            "sourceMode": "dynamic",
+            "colorRules": [
+              {
+                "value": "在航",
+                "color": "#25D8AE"
+              },
+              {
+                "value": "巡航",
+                "color": "#22D3EE"
+              },
+              {
+                "value": "告警",
+                "color": "#FF667A"
+              },
+              {
+                "value": "作业",
+                "color": "#FFBF47"
+              },
+              {
+                "value": "锚泊",
+                "color": "#8AA7C7"
+              },
+              {
+                "value": "系泊",
+                "color": "#8AA7C7"
+              }
+            ]
+          },
+          "binding": {
+            "target": "slot",
+            "slotId": "slot_2",
+            "field": "status"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tpl_table",
+      "name": "商船动态列表",
+      "category": "图表组件",
+      "layout": {
+        "width": 1248,
+        "height": 280
+      },
+      "slots": [],
+      "controls": [
+        {
+          "id": "table",
+          "type": "table",
+          "style": {
+            "x": 18,
+            "y": 59,
+            "w": 1212,
+            "h": 203,
+            "fontSize": 16,
+            "color": "#DBF4FF"
+          },
+          "props": {
+            "sourceMode": "dynamic",
+            "schemaType": "vessel",
+            "columns": [
+              "vessel_name",
+              "mmsi",
+              "vessel_type",
+              "speed",
+              "heading",
+              "status",
+              "update_time"
+            ],
+            "filterField": "vessel_type",
+            "filterValue": "商船",
+            "pageSize": 4,
+            "autoPageSeconds": 8,
+            "tableColumnRules": [
+              {
+                "field": "status",
+                "rules": [
+                  {
+                    "value": "在航",
+                    "color": "#22C55E"
+                  },
+                  {
+                    "value": "巡航",
+                    "color": "#06B6D4"
+                  },
+                  {
+                    "value": "作业",
+                    "color": "#F59E0B"
+                  },
+                  {
+                    "value": "告警",
+                    "color": "#EF4444"
+                  }
+                ]
+              }
+            ]
+          },
+          "binding": null
+        }
+      ]
+    },
+    {
+      "id": "atom_text",
+      "name": "文本框",
+      "category": "原子控件",
+      "layout": {
+        "width": 320,
+        "height": 150
+      },
+      "showHeader": false,
+      "slots": [
+        {
+          "id": "slot_1",
+          "label": "对象1",
+          "schemaType": "vessel"
+        }
+      ],
+      "controls": [
+        {
+          "id": "content",
+          "type": "text",
+          "style": {
+            "x": 12,
+            "y": 12,
+            "w": 296,
+            "h": 126,
+            "fontSize": 28,
+            "color": "#DBF4FF"
+          },
+          "props": {
+            "sourceMode": "static",
+            "staticValue": "请输入内容"
+          },
+          "binding": null
+        }
+      ]
+    },
+    {
+      "id": "atom_number",
+      "name": "数值框",
+      "category": "原子控件",
+      "layout": {
+        "width": 320,
+        "height": 150
+      },
+      "showHeader": false,
+      "slots": [
+        {
+          "id": "slot_1",
+          "label": "对象1",
+          "schemaType": "vessel"
+        }
+      ],
+      "controls": [
+        {
+          "id": "content",
+          "type": "number",
+          "style": {
+            "x": 12,
+            "y": 12,
+            "w": 296,
+            "h": 126,
+            "fontSize": 28,
+            "color": "#DBF4FF"
+          },
+          "props": {
+            "sourceMode": "static",
+            "staticValue": 0
+          },
+          "binding": null
+        }
+      ]
+    },
+    {
+      "id": "atom_time",
+      "name": "时间框",
+      "category": "原子控件",
+      "layout": {
+        "width": 320,
+        "height": 150
+      },
+      "showHeader": false,
+      "slots": [
+        {
+          "id": "slot_1",
+          "label": "对象1",
+          "schemaType": "vessel"
+        }
+      ],
+      "controls": [
+        {
+          "id": "content",
+          "type": "time",
+          "style": {
+            "x": 12,
+            "y": 12,
+            "w": 296,
+            "h": 126,
+            "fontSize": 28,
+            "color": "#DBF4FF"
+          },
+          "props": {
+            "sourceMode": "static",
+            "clock": true
+          },
+          "binding": null
+        }
+      ]
+    },
+    {
+      "id": "atom_light",
+      "name": "指示灯",
+      "category": "原子控件",
+      "layout": {
+        "width": 320,
+        "height": 150
+      },
+      "showHeader": false,
+      "slots": [
+        {
+          "id": "slot_1",
+          "label": "对象1",
+          "schemaType": "vessel"
+        }
+      ],
+      "controls": [
+        {
+          "id": "content",
+          "type": "light",
+          "style": {
+            "x": 12,
+            "y": 12,
+            "w": 296,
+            "h": 126,
+            "fontSize": 28,
+            "color": "#DBF4FF"
+          },
+          "props": {
+            "sourceMode": "static",
+            "staticValue": "请输入内容"
+          },
+          "binding": null
+        }
+      ]
+    },
+    {
+      "id": "atom_image",
+      "name": "图片／动图",
+      "category": "原子控件",
+      "layout": {
+        "width": 320,
+        "height": 150
+      },
+      "showHeader": false,
+      "slots": [],
+      "controls": [
+        {
+          "id": "content",
+          "type": "image",
+          "style": {
+            "x": 12,
+            "y": 12,
+            "w": 296,
+            "h": 126,
+            "fontSize": 28,
+            "color": "#DBF4FF"
+          },
+          "props": {
+            "sourceMode": "static",
+            "imageType": "radar"
+          },
+          "binding": null
+        }
+      ]
+    },
+    {
+      "id": "atom_table",
+      "name": "数据表格",
+      "category": "原子控件",
+      "layout": {
+        "width": 560,
+        "height": 260
+      },
+      "showHeader": false,
+      "slots": [],
+      "controls": [
+        {
+          "id": "content",
+          "type": "table",
+          "style": {
+            "x": 12,
+            "y": 12,
+            "w": 536,
+            "h": 236,
+            "fontSize": 28,
+            "color": "#DBF4FF"
+          },
+          "props": {
+            "sourceMode": "dynamic",
+            "schemaType": "vessel",
+            "columns": ["vessel_name", "speed", "status"],
+            "pageSize": 4,
+            "tableColumnRules": [
+              {
+                "field": "status",
+                "rules": [
+                  {
+                    "value": "在航",
+                    "color": "#22C55E"
+                  },
+                  {
+                    "value": "巡航",
+                    "color": "#06B6D4"
+                  },
+                  {
+                    "value": "作业",
+                    "color": "#F59E0B"
+                  },
+                  {
+                    "value": "告警",
+                    "color": "#EF4444"
+                  }
+                ]
+              }
+            ]
+          },
+          "binding": null
+        }
+      ]
+    },
+    {
+      "id": "atom_line",
+      "name": "时序曲线",
+      "category": "原子控件",
+      "layout": {
+        "width": 560,
+        "height": 260
+      },
+      "showHeader": false,
+      "slots": [
+        {
+          "id": "slot_1",
+          "label": "对象1",
+          "schemaType": "vessel"
+        }
+      ],
+      "controls": [
+        {
+          "id": "content",
+          "type": "line",
+          "style": {
+            "x": 12,
+            "y": 12,
+            "w": 536,
+            "h": 236,
+            "fontSize": 28,
+            "color": "#DBF4FF"
+          },
+          "props": {
+            "sourceMode": "dynamic",
+            "lookbackMinutes": 20,
+            "series": [
+              {
+                "slotId": "slot_1",
+                "field": "speed",
+                "color": "#22D3EE"
+              }
+            ]
+          },
+          "binding": null
+        }
+      ]
+    },
+    {
+      "id": "atom_stream",
+      "name": "滚动消息流",
+      "category": "原子控件",
+      "layout": {
+        "width": 560,
+        "height": 260
+      },
+      "showHeader": false,
+      "slots": [],
+      "controls": [
+        {
+          "id": "content",
+          "type": "stream",
+          "style": {
+            "x": 12,
+            "y": 12,
+            "w": 536,
+            "h": 236,
+            "fontSize": 28,
+            "color": "#DBF4FF"
+          },
+          "props": {
+            "sourceMode": "dynamic",
+            "schemaType": "event_log",
+            "streamMaxItems": 50,
+            "streamAutoScroll": true
+          },
+          "binding": null
+        }
+      ]
+    }
+  ]
+}

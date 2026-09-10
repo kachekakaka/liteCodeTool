@@ -1,0 +1,16 @@
+{
+  "type": "projectile",
+  "id": "P-101-radar2",
+  "timestamp": 1788940000000,
+  "data": {
+    "batch_no": "P-101",
+    "source": "雷达2",
+    "altitude": 1.2,
+    "speed": 360,
+    "heading": 90,
+    "lon": 121.5,
+    "lat": 31.2,
+    "status": "跟踪",
+    "update_time": "2026-09-09T10:00:00+08:00"
+  }
+}
